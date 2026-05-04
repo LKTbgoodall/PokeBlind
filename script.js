@@ -652,10 +652,22 @@ document.getElementById("btn-solo").addEventListener("click", () => {
 });
 
 document.getElementById("btn-host").addEventListener("click", () => {
+  const btn = document.getElementById("btn-host");
+  const originalText = btn.textContent;
+  btn.textContent = "CRÉATION...";
+  btn.disabled = true;
+
   appState.playerName = document.getElementById("player-name").value || "Hôte";
   appState.isMultiplayer = true;
   appState.isHost = true;
-  appState.roomCode = Math.random().toString(36).substring(2, 6).toUpperCase();
+
+  // Générer un code à 4 lettres
+  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+  let code = "";
+  for (let i = 0; i < 4; i++)
+    code += chars.charAt(Math.floor(Math.random() * chars.length));
+  appState.roomCode = code;
+
   appState.peerInstance = new Peer("pb-" + appState.roomCode);
 
   appState.peerInstance.on("open", (id) => {
@@ -670,8 +682,18 @@ document.getElementById("btn-host").addEventListener("click", () => {
     document.getElementById("lobby-code-display").textContent =
       appState.roomCode;
     document.getElementById("btn-start-multi").style.display = "block";
+
+    btn.textContent = originalText;
+    btn.disabled = false;
+
     updateLobbyUI();
     switchScreen("lobby");
+  });
+
+  appState.peerInstance.on("error", (err) => {
+    alert("Erreur de connexion au serveur : " + err.type);
+    btn.textContent = originalText;
+    btn.disabled = false;
   });
 
   appState.peerInstance.on("connection", (conn) => {
@@ -681,11 +703,23 @@ document.getElementById("btn-host").addEventListener("click", () => {
 });
 
 document.getElementById("btn-join").addEventListener("click", () => {
+  appState.roomCode = document
+    .getElementById("join-code")
+    .value.toUpperCase()
+    .trim();
+
+  if (!appState.roomCode) {
+    alert("Veuillez entrer un code de salon !");
+    return;
+  }
+
+  const btn = document.getElementById("btn-join");
+  const originalText = btn.textContent;
+  btn.textContent = "CONNEXION...";
+  btn.disabled = true;
+
   appState.playerName =
     document.getElementById("player-name").value || "Joueur";
-  appState.roomCode = document.getElementById("join-code").value.toUpperCase();
-  if (!appState.roomCode) return;
-
   appState.isMultiplayer = true;
   appState.isHost = false;
   appState.peerInstance = new Peer();
@@ -694,15 +728,39 @@ document.getElementById("btn-join").addEventListener("click", () => {
     appState.playerId = id;
     const conn = appState.peerInstance.connect("pb-" + appState.roomCode);
     appState.connections = [conn];
+
     conn.on("open", () => {
       conn.send({ type: "JOIN", name: appState.playerName, id: id });
       document.getElementById("lobby-code-display").textContent =
         appState.roomCode;
       document.getElementById("host-settings-panel").style.display = "none";
       document.getElementById("waiting-msg").style.display = "block";
+
+      btn.textContent = originalText;
+      btn.disabled = false;
+
       switchScreen("lobby");
     });
+
+    // Erreur de connexion directe à l'hôte
+    conn.on("error", (err) => {
+      alert("Impossible de rejoindre l'hôte.");
+      btn.textContent = originalText;
+      btn.disabled = false;
+    });
+
     conn.on("data", (data) => handlePeerData(data, conn));
+  });
+
+  // Gestion des erreurs générales PeerJS (ex: salon introuvable)
+  appState.peerInstance.on("error", (err) => {
+    if (err.type === "peer-unavailable") {
+      alert("Salon introuvable ! Vérifie le code.");
+    } else {
+      alert("Erreur réseau : " + err.type);
+    }
+    btn.textContent = originalText;
+    btn.disabled = false;
   });
 });
 
