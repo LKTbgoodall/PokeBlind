@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PokeBlind</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Poppins:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="style.css" />
+    <script src="https://unpkg.com/peerjs@1.5.1/dist/peerjs.min.js"></script>
+  </head>
+  <body>
+    <div id="screen-home" class="screen active">
+      <div class="bg-deco"></div>
+      <div class="home-container">
+        <header class="home-header">
+          <div class="pokeball-logo">
+            <div class="pokeball-logo-inner"></div>
+          </div>
+          <h1 class="logo-title">PokeBlind</h1>
+        </header>
+
+        <div class="settings-card">
+          <div class="setting-group">
+            <input
+              type="text"
+              id="player-name"
+              class="answer-input"
+              placeholder="Ton pseudo"
+              autocomplete="off"
+            />
+          </div>
+
+          <div class="setting-group" id="host-settings-panel">
+            <h3 class="setting-label">GÉNÉRATIONS</h3>
+            <div class="gen-grid" id="gen-grid"></div>
+            <button class="btn-all-gens" id="btn-all-gens">
+              Toutes les Générations
+            </button>
+
+            <h3 class="setting-label" style="margin-top: 1rem">MANCHES</h3>
+            <div class="rounds-grid" id="rounds-grid">
+              <button class="round-btn" data-value="5">5</button>
+              <button class="round-btn active" data-value="10">10</button>
+              <button class="round-btn" data-value="20">20</button>
+            </div>
+
+            <h3 class="setting-label" style="margin-top: 1rem">
+              TEMPS PAR MANCHE
+            </h3>
+            <div class="rounds-grid" id="timer-grid">
+              <button class="timer-btn" data-value="10">10s</button>
+              <button class="timer-btn active" data-value="15">15s</button>
+              <button class="timer-btn" data-value="20">20s</button>
+            </div>
+          </div>
+
+          <div class="multiplayer-actions">
+            <button class="btn-play" id="btn-solo">SOLO</button>
+            <button class="btn-play" id="btn-host">HÉBERGER</button>
+          </div>
+          <div class="join-group">
+            <input
+              type="text"
+              id="join-code"
+              class="answer-input code-input"
+              placeholder="CODE SALON"
+              autocomplete="off"
+              maxlength="4"
+            />
+            <button class="btn-secondary" id="btn-join">REJOINDRE</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="screen-lobby" class="screen">
+      <div class="bg-deco"></div>
+      <div class="home-container">
+        <h2 class="logo-title">
+          SALON : <span id="lobby-code-display"></span>
+        </h2>
+        <div class="settings-card">
+          <h3 class="setting-label">JOUEURS PRÉSENTS</h3>
+          <div id="lobby-players" class="lobby-players-list"></div>
+          <button
+            class="btn-play"
+            id="btn-start-multi"
+            style="display: none; margin-top: 1rem"
+          >
+            LANCER LA PARTIE
+          </button>
+          <p
+            id="waiting-msg"
+            class="setting-label"
+            style="text-align: center; display: none"
+          >
+            En attente de l'hôte...
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <div id="screen-game" class="screen">
+      <div class="game-topbar">
+        <button class="btn-icon" id="btn-quit" title="Quitter">✕</button>
+        <div id="multi-scores" class="multi-scores"></div>
+        <div class="score-pill" id="solo-score-pill">
+          <span class="score-label">SCORE</span>
+          <span id="score-display">0</span>
+        </div>
+        <div class="round-pill" id="round-display">1 / 10</div>
+      </div>
+
+      <div class="timer-wrap">
+        <div class="timer-track">
+          <div class="timer-bar" id="timer-bar"></div>
+        </div>
+        <div class="timer-number" id="timer-number">15</div>
+      </div>
+
+      <div class="pokemon-arena" id="pokemon-card">
+        <div class="arena-glow" id="arena-glow"></div>
+        <img id="pokemon-img" class="pokemon-img" src="" alt="Pokemon" />
+      </div>
+
+      <div class="type-row" id="type-badges"></div>
+
+      <div class="answer-zone">
+        <div class="feedback" id="feedback-message"></div>
+        <div class="input-group" id="input-group">
+          <input
+            type="text"
+            id="answer-input"
+            class="answer-input"
+            placeholder="Tapez le nom..."
+            autocomplete="off"
+            spellcheck="false"
+          />
+          <button class="btn-pass" id="btn-pass">Passer</button>
+        </div>
+      </div>
+
+      <div class="history-strip" id="live-history"></div>
+
+      <div class="loading-overlay hidden" id="loading-overlay">
+        <div class="pokeball-spin"><div class="pokeball-spin-inner"></div></div>
+      </div>
+    </div>
+
+    <div id="screen-results" class="screen">
+      <div class="results-container">
+        <h2 class="results-title">FIN DE PARTIE</h2>
+        <div class="results-score" id="results-score"></div>
+        <div class="results-list" id="results-list"></div>
+        <div class="results-actions">
+          <button class="btn-play" id="btn-replay">REJOUER</button>
+          <button class="btn-secondary" id="btn-home-results">ACCUEIL</button>
+        </div>
+      </div>
+    </div>
+
+    <canvas id="confetti-canvas"></canvas>
+    <script src="script.js"></script>
+  </body>
+</html>
