@@ -1,11 +1,12 @@
 const supabaseUrl = "https://skrgmhdcvezxpyybwssn.supabase.co";
-const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNrcmdtaGRjdmV6eHB5eWJ3c3NuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc5ODE0MjUsImV4cCI6MjA5MzU1NzQyNX0.SXIL3dhqATc_F3zB2B_ELjAxMZ0vFDJ-sxBC-bdo2EE";
+const supabaseKey =
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNrcmdtaGRjdmV6eHB5eWJ3c3NuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc5ODE0MjUsImV4cCI6MjA5MzU1NzQyNX0.SXIL3dhqATc_F3zB2B_ELjAxMZ0vFDJ-sxBC-bdo2EE";
 
 let supabaseClient = null;
 try {
   supabaseClient = window.supabase.createClient(supabaseUrl, supabaseKey);
 } catch (e) {
-  console.warn("Supabase non configuré. Le mode multijoueur sera inactif.");
+  console.warn("Supabase non configuré.");
 }
 
 const generationData = [
@@ -20,28 +21,30 @@ const generationData = [
   { id: 9, label: "GEN IX", sub: "906-1025", range: [906, 1025] },
 ];
 
+// Nouveaux types traduits + ID pour l'API des images
 const typeData = {
-  normal: { color: "#9099A1" },
-  fire: { color: "#FF7C35" },
-  water: { color: "#4592C4" },
-  electric: { color: "#EDD53F" },
-  grass: { color: "#5FBD58" },
-  ice: { color: "#75D0C1" },
-  fighting: { color: "#D04164" },
-  poison: { color: "#A559B5" },
-  ground: { color: "#D27D3E" },
-  flying: { color: "#748FC9" },
-  psychic: { color: "#FA7179" },
-  bug: { color: "#91C12F" },
-  rock: { color: "#C5B78C" },
-  ghost: { color: "#556AAE" },
-  dragon: { color: "#0F6AC0" },
-  dark: { color: "#5F4650" },
-  steel: { color: "#5A8EA2" },
-  fairy: { color: "#EF97CE" },
+  normal: { id: 1, fr: "Normal", color: "#9099A1" },
+  fighting: { id: 2, fr: "Combat", color: "#D04164" },
+  flying: { id: 3, fr: "Vol", color: "#748FC9" },
+  poison: { id: 4, fr: "Poison", color: "#A559B5" },
+  ground: { id: 5, fr: "Sol", color: "#D27D3E" },
+  rock: { id: 6, fr: "Roche", color: "#C5B78C" },
+  bug: { id: 7, fr: "Insecte", color: "#91C12F" },
+  ghost: { id: 8, fr: "Spectre", color: "#556AAE" },
+  steel: { id: 9, fr: "Acier", color: "#5A8EA2" },
+  fire: { id: 10, fr: "Feu", color: "#FF7C35" },
+  water: { id: 11, fr: "Eau", color: "#4592C4" },
+  grass: { id: 12, fr: "Plante", color: "#5FBD58" },
+  electric: { id: 13, fr: "Électrik", color: "#EDD53F" },
+  psychic: { id: 14, fr: "Psy", color: "#FA7179" },
+  ice: { id: 15, fr: "Glace", color: "#75D0C1" },
+  dragon: { id: 16, fr: "Dragon", color: "#0F6AC0" },
+  dark: { id: 17, fr: "Ténèbres", color: "#5F4650" },
+  fairy: { id: 18, fr: "Fée", color: "#EF97CE" },
 };
 
 let appState = {
+  gameMode: "name", // "name" ou "type"
   selectedGens: [1],
   totalRounds: 10,
   timerDuration: 15,
@@ -66,12 +69,16 @@ let appState = {
   playerId: "solo",
   playersData: {},
   finishedPlayers: [],
+  selectedTypes: [], // Pour le mode Type
 };
 
 function calculatePoints(timeTaken, timerDuration, currentStreak) {
   const baseScore = 500;
   const maxTimeBonus = 500;
-  const timeBonus = Math.max(0, Math.floor(maxTimeBonus * (1 - timeTaken / (timerDuration * 1000))));
+  const timeBonus = Math.max(
+    0,
+    Math.floor(maxTimeBonus * (1 - timeTaken / (timerDuration * 1000))),
+  );
   const streakMultiplier = Math.min(2.0, 1 + (currentStreak || 0) * 0.2);
   return Math.floor((baseScore + timeBonus) * streakMultiplier);
 }
@@ -144,14 +151,21 @@ class ConfettiGenerator {
     this.canvas.style.display = "none";
   }
 }
-const confettiEffect = new ConfettiGenerator(document.getElementById("confetti-canvas"));
+const confettiEffect = new ConfettiGenerator(
+  document.getElementById("confetti-canvas"),
+);
 
 function normalizeText(str) {
-  return str.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
+  return str
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]/g, "");
 }
 
 function checkMatch(input, target) {
-  const nIn = normalizeText(input), nTar = normalizeText(target);
+  const nIn = normalizeText(input),
+    nTar = normalizeText(target);
   return nIn === nTar && nIn.length > 0;
 }
 
@@ -175,13 +189,17 @@ function buildQueue() {
 }
 
 function switchScreen(id) {
-  document.querySelectorAll(".screen").forEach((s) => s.classList.remove("active"));
+  document
+    .querySelectorAll(".screen")
+    .forEach((s) => s.classList.remove("active"));
   document.getElementById("screen-" + id).classList.add("active");
 }
 
 function toggleLoading(visible) {
   const overlay = document.getElementById("loading-overlay");
-  visible ? overlay.classList.remove("hidden") : overlay.classList.add("hidden");
+  visible
+    ? overlay.classList.remove("hidden")
+    : overlay.classList.add("hidden");
 }
 
 async function fetchPokemonData(id) {
@@ -189,14 +207,17 @@ async function fetchPokemonData(id) {
     fetch("https://pokeapi.co/api/v2/pokemon/" + id),
     fetch("https://pokeapi.co/api/v2/pokemon-species/" + id),
   ]);
-  const p1 = await res1.json(), p2 = await res2.json();
+  const p1 = await res1.json(),
+    p2 = await res2.json();
   const fr = p2.names.find((n) => n.language.name === "fr");
   const en = p2.names.find((n) => n.language.name === "en");
   return {
     id,
     nameFr: fr ? fr.name : p1.name,
     nameEn: en ? en.name : p1.name,
-    imageUrl: p1.sprites?.other?.["official-artwork"]?.front_default || p1.sprites?.front_default,
+    imageUrl:
+      p1.sprites?.other?.["official-artwork"]?.front_default ||
+      p1.sprites?.front_default,
     types: p1.types.map((t) => t.type.name),
   };
 }
@@ -232,9 +253,11 @@ function updateScoreUI() {
     document.getElementById("multi-scores").style.display = "none";
     document.getElementById("solo-score-pill").style.display = "flex";
     const streakStr = appState.streak > 1 ? ` 🔥${appState.streak}` : "";
-    document.getElementById("score-display").textContent = `${appState.score} pts ${streakStr}`;
+    document.getElementById("score-display").textContent =
+      `${appState.score} pts ${streakStr}`;
   }
-  document.getElementById("round-display").textContent = appState.currentRound + 1 + " / " + appState.totalRounds;
+  document.getElementById("round-display").textContent =
+    appState.currentRound + 1 + " / " + appState.totalRounds;
 }
 
 function updateLobbyUI() {
@@ -248,20 +271,62 @@ function updateLobbyUI() {
   });
 }
 
+function renderTypeSelector() {
+  const grid = document.getElementById("type-selector");
+  grid.innerHTML = "";
+  appState.selectedTypes = [];
+  Object.entries(typeData).forEach(([key, data]) => {
+    const btn = document.createElement("button");
+    btn.className = "type-select-btn";
+    btn.style.backgroundColor = data.color;
+    btn.innerHTML = `
+      <img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/types/generation-viii/sword-shield/${data.id}.png" alt="${data.fr}">
+      <span>${data.fr}</span>
+    `;
+    btn.onclick = () => {
+      if (appState.selectedTypes.includes(key)) {
+        appState.selectedTypes = appState.selectedTypes.filter(
+          (t) => t !== key,
+        );
+        btn.classList.remove("selected");
+      } else if (appState.selectedTypes.length < 2) {
+        appState.selectedTypes.push(key);
+        btn.classList.add("selected");
+      }
+    };
+    grid.appendChild(btn);
+  });
+}
+
 function resetRoundUI() {
   const input = document.getElementById("answer-input");
   const feedback = document.getElementById("feedback-message");
   const glow = document.getElementById("arena-glow");
+
   input.value = "";
   input.disabled = false;
   input.classList.remove("correct-flash", "wrong-flash");
+
   document.getElementById("btn-pass").disabled = false;
+  document.getElementById("btn-submit-type").disabled = false;
+  document.getElementById("btn-pass-type").disabled = false;
+
   feedback.textContent = "";
   feedback.className = "feedback";
   glow.className = "arena-glow";
   document.getElementById("timer-bar").style.width = "100%";
+
   appState.localGuessed = false;
   appState.localCorrect = false;
+
+  if (appState.gameMode === "type") {
+    document.getElementById("name-input-group").style.display = "none";
+    document.getElementById("type-input-group").style.display = "flex";
+    renderTypeSelector();
+  } else {
+    document.getElementById("name-input-group").style.display = "flex";
+    document.getElementById("type-input-group").style.display = "none";
+  }
 }
 
 function startTimer() {
@@ -271,18 +336,15 @@ function startTimer() {
   const totalTime = appState.timerDuration * 1000;
   appState.timeLeft = totalTime;
   bar.classList.remove("blink");
+
   appState.timerInterval = setInterval(() => {
     appState.timeLeft -= 100;
     const pct = Math.max(0, appState.timeLeft / totalTime);
     bar.style.width = pct * 100 + "%";
 
-    if (pct > 0.5) {
-      bar.style.backgroundColor = "var(--success)";
-    } else if (pct > 0.25) {
-      bar.style.backgroundColor = "var(--accent)";
-    } else {
-      bar.style.backgroundColor = "var(--danger)";
-    }
+    if (pct > 0.5) bar.style.backgroundColor = "var(--success)";
+    else if (pct > 0.25) bar.style.backgroundColor = "var(--accent)";
+    else bar.style.backgroundColor = "var(--danger)";
 
     numEl.textContent = Math.ceil(appState.timeLeft / 1000);
     if (appState.timeLeft <= 3000) bar.classList.add("blink");
@@ -313,16 +375,17 @@ function stopTimer() {
 
 function broadcastMessage(data) {
   if (appState.roomChannel) {
-    appState.roomChannel.send({ type: "broadcast", event: "game", payload: data });
+    appState.roomChannel.send({
+      type: "broadcast",
+      event: "game",
+      payload: data,
+    });
   }
 }
 
 function sendToHost(msg) {
-  if (appState.isHost) {
-    handleHostData(msg);
-  } else {
-    broadcastMessage(msg);
-  }
+  if (appState.isHost) handleHostData(msg);
+  else broadcastMessage(msg);
 }
 
 function handleHostData(data) {
@@ -332,7 +395,11 @@ function handleHostData(data) {
   if (!appState.finishedPlayers.includes(data.id)) {
     appState.finishedPlayers.push(data.id);
     if (data.type === "CORRECT") {
-      const points = calculatePoints(data.timeTaken, appState.timerDuration, player.streak || 0);
+      const points = calculatePoints(
+        data.timeTaken,
+        appState.timerDuration,
+        player.streak || 0,
+      );
       player.score += points;
       player.streak = (player.streak || 0) + 1;
       player.totalTime += data.timeTaken;
@@ -379,7 +446,10 @@ function handlePeerData(data) {
         totalTime: 0,
         streak: 0,
       };
-      broadcastMessage({ type: "PLAYERS_UPDATE", players: appState.playersData });
+      broadcastMessage({
+        type: "PLAYERS_UPDATE",
+        players: appState.playersData,
+      });
       updateLobbyUI();
       return;
     }
@@ -395,6 +465,9 @@ function handlePeerData(data) {
   if (data.type === "UPDATE_SPECS") {
     appState.totalRounds = data.rounds;
     appState.timerDuration = data.time;
+    appState.gameMode = data.mode;
+    document.getElementById("lobby-rounds-input").value = data.rounds;
+    document.getElementById("lobby-time-input").value = data.time;
   }
   if (data.type === "PLAYERS_UPDATE") {
     appState.playersData = data.players;
@@ -404,6 +477,7 @@ function handlePeerData(data) {
   if (data.type === "START_GAME") {
     appState.totalRounds = data.rounds;
     appState.timerDuration = data.time;
+    appState.gameMode = data.mode;
     document.getElementById("live-history").innerHTML = "";
     appState.history = [];
     appState.currentRound = 0;
@@ -431,9 +505,15 @@ async function loadNextPokemon() {
   if (appState.isMultiplayer && !appState.isHost) return;
   try {
     appState.finishedPlayers = [];
-    const pokemon = await fetchPokemonData(appState.pokemonQueue[appState.currentRound]);
+    const pokemon = await fetchPokemonData(
+      appState.pokemonQueue[appState.currentRound],
+    );
     if (appState.isMultiplayer && appState.isHost) {
-      broadcastMessage({ type: "NEW_ROUND", pokemon: pokemon, round: appState.currentRound });
+      broadcastMessage({
+        type: "NEW_ROUND",
+        pokemon: pokemon,
+        round: appState.currentRound,
+      });
     }
     setupPokemon(pokemon);
   } catch (err) {
@@ -446,20 +526,32 @@ function setupPokemon(pokemon) {
   appState.currentPokemon = pokemon;
   const img = document.getElementById("pokemon-img");
   if (pokemon.imageUrl) img.src = pokemon.imageUrl;
+
   const badges = document.getElementById("type-badges");
   badges.innerHTML = "";
-  pokemon.types.forEach((t) => {
-    const d = typeData[t] || { color: "#888" };
+
+  if (appState.gameMode === "name") {
+    pokemon.types.forEach((t) => {
+      const d = typeData[t] || { fr: t, color: "#888" };
+      const b = document.createElement("span");
+      b.className = "type-badge";
+      b.style.backgroundColor = d.color;
+      b.textContent = d.fr;
+      badges.appendChild(b);
+    });
+  } else {
     const b = document.createElement("span");
     b.className = "type-badge";
-    b.style.backgroundColor = d.color;
-    b.textContent = t;
+    b.style.backgroundColor = "#555";
+    b.textContent = "???";
     badges.appendChild(b);
-  });
+  }
+
   toggleLoading(false);
   appState.isAnswering = true;
   appState.roundStartTime = Date.now();
-  document.getElementById("answer-input").focus();
+  if (appState.gameMode === "name")
+    document.getElementById("answer-input").focus();
   startTimer();
 }
 
@@ -468,9 +560,11 @@ function handleEndRound(newPlayersData, pokemon) {
   appState.isAnswering = false;
   if (newPlayersData) appState.playersData = newPlayersData;
   updateScoreUI();
+
   const input = document.getElementById("answer-input");
   const feedback = document.getElementById("feedback-message");
   const glow = document.getElementById("arena-glow");
+
   if (!appState.localCorrect) {
     input.classList.add("wrong-flash");
     glow.classList.add("wrong-glow");
@@ -479,12 +573,40 @@ function handleEndRound(newPlayersData, pokemon) {
     glow.classList.add("correct-glow");
     confettiEffect.launch();
   }
-  feedback.innerHTML =
-    (appState.localCorrect ? "✅ BIEN JOUÉ ! " : "❌ TERMINÉ ! ") +
-    "C'était <strong>" + pokemon.nameFr.toUpperCase() + "</strong>";
+
+  // Toujours afficher les types à la fin
+  const badges = document.getElementById("type-badges");
+  badges.innerHTML = "";
+  pokemon.types.forEach((t) => {
+    const d = typeData[t] || { fr: t, color: "#888" };
+    const b = document.createElement("span");
+    b.className = "type-badge";
+    b.style.backgroundColor = d.color;
+    b.textContent = d.fr;
+    badges.appendChild(b);
+  });
+
+  const correctTypesStr = pokemon.types
+    .map((t) => typeData[t]?.fr || t)
+    .join(" / ");
+
+  if (appState.gameMode === "name") {
+    feedback.innerHTML =
+      (appState.localCorrect ? "✅ BIEN JOUÉ ! " : "❌ TERMINÉ ! ") +
+      "C'était <strong>" +
+      pokemon.nameFr.toUpperCase() +
+      "</strong>";
+  } else {
+    feedback.innerHTML =
+      (appState.localCorrect ? "✅ BIEN JOUÉ ! " : "❌ TERMINÉ ! ") +
+      "Type(s) : <strong>" +
+      correctTypesStr +
+      "</strong>";
+  }
+
   appState.history.push({ pokemon: pokemon, correct: appState.localCorrect });
   updateHistoryUI();
-  setTimeout(proceedNext, 2500);
+  setTimeout(proceedNext, 3000); // 3s pour bien voir les types
 }
 
 function proceedNext() {
@@ -517,7 +639,8 @@ function showResults() {
       list.appendChild(el);
     });
   } else {
-    document.getElementById("results-score").textContent = appState.score + " PTS";
+    document.getElementById("results-score").textContent =
+      appState.score + " PTS";
     const timeSec = (appState.totalTime / 1000).toFixed(1);
     const timeEl = document.createElement("div");
     timeEl.style.textAlign = "center";
@@ -538,11 +661,17 @@ function initUI() {
   const grid = document.getElementById("gen-grid");
   generationData.forEach((gen) => {
     const btn = document.createElement("button");
-    btn.className = "gen-btn" + (appState.selectedGens.includes(gen.id) ? " active" : "");
+    btn.className =
+      "gen-btn" + (appState.selectedGens.includes(gen.id) ? " active" : "");
     btn.innerHTML = gen.label + "<span>" + gen.sub + "</span>";
     btn.addEventListener("click", () => {
-      if (appState.selectedGens.includes(gen.id) && appState.selectedGens.length > 1) {
-        appState.selectedGens = appState.selectedGens.filter((g) => g !== gen.id);
+      if (
+        appState.selectedGens.includes(gen.id) &&
+        appState.selectedGens.length > 1
+      ) {
+        appState.selectedGens = appState.selectedGens.filter(
+          (g) => g !== gen.id,
+        );
         btn.classList.remove("active");
       } else if (!appState.selectedGens.includes(gen.id)) {
         appState.selectedGens.push(gen.id);
@@ -553,31 +682,64 @@ function initUI() {
   });
   document.getElementById("btn-all-gens").addEventListener("click", () => {
     appState.selectedGens = generationData.map((g) => g.id);
-    document.querySelectorAll(".gen-btn").forEach((b) => b.classList.add("active"));
+    document
+      .querySelectorAll(".gen-btn")
+      .forEach((b) => b.classList.add("active"));
   });
-  document.querySelectorAll(".glass-btn").forEach((btn) => {
+
+  document.querySelectorAll("#mode-grid .glass-btn").forEach((btn) => {
     btn.addEventListener("click", (e) => {
-      const parent = e.target.parentElement;
-      parent.querySelectorAll(".glass-btn").forEach((b) => b.classList.remove("active"));
+      document
+        .querySelectorAll("#mode-grid .glass-btn")
+        .forEach((b) => b.classList.remove("active"));
       btn.classList.add("active");
-      if (parent.id === "rounds-grid") appState.totalRounds = Number(btn.dataset.value);
-      if (parent.id === "timer-grid") appState.timerDuration = Number(btn.dataset.value);
+      appState.gameMode = btn.dataset.value;
     });
+  });
+
+  // Écouteurs pour les champs personnalisés Etape 2
+  document.getElementById("rounds-input").addEventListener("input", (e) => {
+    appState.totalRounds = parseInt(e.target.value) || 10;
+  });
+  document.getElementById("timer-input").addEventListener("input", (e) => {
+    appState.timerDuration = parseInt(e.target.value) || 15;
   });
 }
 
-document.getElementById("btn-solo").addEventListener("click", () => {
-  appState.isMultiplayer = false;
+function startGame() {
   appState.pokemonQueue = buildQueue();
-  appState.totalRounds = Math.min(appState.totalRounds, appState.pokemonQueue.length);
+  appState.totalRounds = Math.min(
+    appState.totalRounds,
+    appState.pokemonQueue.length,
+  );
   appState.score = 0;
   appState.streak = 0;
   appState.totalTime = 0;
   appState.currentRound = 0;
   appState.history = [];
   document.getElementById("live-history").innerHTML = "";
+
+  if (appState.isMultiplayer) {
+    Object.values(appState.playersData).forEach((p) => {
+      p.score = 0;
+      p.totalTime = 0;
+      p.streak = 0;
+    });
+    broadcastMessage({
+      type: "START_GAME",
+      rounds: appState.totalRounds,
+      time: appState.timerDuration,
+      mode: appState.gameMode,
+    });
+  }
+
   switchScreen("game");
   loadNextPokemon();
+}
+
+document.getElementById("btn-solo").addEventListener("click", () => {
+  appState.isMultiplayer = false;
+  startGame();
 });
 
 document.getElementById("btn-host").addEventListener("click", () => {
@@ -599,9 +761,8 @@ document.getElementById("btn-host").addEventListener("click", () => {
 
   const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
   let code = "";
-  for (let i = 0; i < 4; i++) {
+  for (let i = 0; i < 4; i++)
     code += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
   appState.roomCode = code;
   appState.playerId = "host-" + Date.now();
 
@@ -623,7 +784,12 @@ document.getElementById("btn-host").addEventListener("click", () => {
       if (status === "SUBSCRIBED") {
         window.history.pushState({}, "", "/" + appState.roomCode);
         document.getElementById("lobby-settings").style.display = "block";
-        document.getElementById("lobby-code-display").textContent = appState.roomCode;
+        document.getElementById("lobby-rounds-input").value =
+          appState.totalRounds;
+        document.getElementById("lobby-time-input").value =
+          appState.timerDuration;
+        document.getElementById("lobby-code-display").textContent =
+          appState.roomCode;
         document.getElementById("btn-start-multi").style.display = "block";
         document.getElementById("waiting-msg").style.display = "none";
         btn.textContent = originalText;
@@ -635,7 +801,10 @@ document.getElementById("btn-host").addEventListener("click", () => {
 });
 
 document.getElementById("btn-join").addEventListener("click", () => {
-  appState.roomCode = document.getElementById("join-code").value.toUpperCase().trim();
+  appState.roomCode = document
+    .getElementById("join-code")
+    .value.toUpperCase()
+    .trim();
   if (!appState.roomCode) return;
 
   const btn = document.getElementById("btn-join");
@@ -650,7 +819,8 @@ document.getElementById("btn-join").addEventListener("click", () => {
     return;
   }
 
-  appState.playerName = document.getElementById("player-name").value || "Joueur";
+  appState.playerName =
+    document.getElementById("player-name").value || "Joueur";
   appState.isMultiplayer = true;
   appState.isHost = false;
   appState.playerId = "player-" + Date.now();
@@ -664,8 +834,13 @@ document.getElementById("btn-join").addEventListener("click", () => {
       if (status === "SUBSCRIBED") {
         window.history.pushState({}, "", "/" + appState.roomCode);
         document.getElementById("lobby-settings").style.display = "none";
-        broadcastMessage({ type: "JOIN", name: appState.playerName, id: appState.playerId });
-        document.getElementById("lobby-code-display").textContent = appState.roomCode;
+        broadcastMessage({
+          type: "JOIN",
+          name: appState.playerName,
+          id: appState.playerId,
+        });
+        document.getElementById("lobby-code-display").textContent =
+          appState.roomCode;
         document.getElementById("waiting-msg").style.display = "block";
         document.getElementById("btn-start-multi").style.display = "none";
         btn.textContent = originalText;
@@ -676,56 +851,126 @@ document.getElementById("btn-join").addEventListener("click", () => {
 });
 
 document.getElementById("btn-start-multi").addEventListener("click", () => {
-  appState.pokemonQueue = buildQueue();
-  appState.totalRounds = Math.min(appState.totalRounds, appState.pokemonQueue.length);
-  appState.score = 0;
-  appState.currentRound = 0;
-  appState.history = [];
-  Object.values(appState.playersData).forEach((p) => {
-    p.score = 0;
-    p.totalTime = 0;
-    p.streak = 0;
-  });
-  broadcastMessage({ type: "START_GAME", rounds: appState.totalRounds, time: appState.timerDuration });
-  document.getElementById("live-history").innerHTML = "";
-  switchScreen("game");
-  loadNextPokemon();
+  startGame();
 });
 
+// LOGIQUE POUR LE MODE "NOM"
 document.getElementById("answer-input").addEventListener("input", (e) => {
-  if (!appState.isAnswering || appState.localGuessed || !appState.currentPokemon) return;
+  if (
+    !appState.isAnswering ||
+    appState.localGuessed ||
+    !appState.currentPokemon ||
+    appState.gameMode !== "name"
+  )
+    return;
   const value = e.target.value;
-  if (checkMatch(value, appState.currentPokemon.nameFr) || checkMatch(value, appState.currentPokemon.nameEn)) {
-    appState.localGuessed = true;
-    appState.localCorrect = true;
-    const timeTaken = Date.now() - appState.roundStartTime;
-    e.target.disabled = true;
-    e.target.classList.add("correct-flash");
-    document.getElementById("btn-pass").disabled = true;
-    const feedback = document.getElementById("feedback-message");
-    feedback.textContent = appState.isMultiplayer ? "✅ Correct ! Attente..." : "✅ Correct !";
-    feedback.className = "feedback correct";
-    if (appState.isMultiplayer) {
-      sendToHost({ type: "CORRECT", id: appState.playerId, timeTaken: timeTaken });
-    } else {
-      const points = calculatePoints(timeTaken, appState.timerDuration, appState.streak);
-      appState.score += points;
-      appState.streak++;
-      appState.totalTime += timeTaken;
-      handleEndRound(null, appState.currentPokemon);
-    }
+  if (
+    checkMatch(value, appState.currentPokemon.nameFr) ||
+    checkMatch(value, appState.currentPokemon.nameEn)
+  ) {
+    processCorrectAnswer();
   }
 });
 
 document.getElementById("btn-pass").addEventListener("click", () => {
-  if (!appState.isAnswering || appState.localGuessed) return;
+  if (
+    !appState.isAnswering ||
+    appState.localGuessed ||
+    appState.gameMode !== "name"
+  )
+    return;
+  processWrongAnswer();
+});
+
+// LOGIQUE POUR LE MODE "TYPE"
+document.getElementById("btn-submit-type").addEventListener("click", () => {
+  if (
+    !appState.isAnswering ||
+    appState.localGuessed ||
+    appState.gameMode !== "type"
+  )
+    return;
+  if (appState.selectedTypes.length === 0) return;
+
+  const actualTypes = appState.currentPokemon.types;
+  const isCorrect =
+    appState.selectedTypes.length === actualTypes.length &&
+    appState.selectedTypes.every((t) => actualTypes.includes(t));
+
+  if (isCorrect) {
+    processCorrectAnswer();
+  } else {
+    // Si faux, on marque comme raté immédiatement (tu peux aussi choisir de les laisser réessayer en vidant juste le tableau)
+    processWrongAnswer();
+  }
+});
+
+document.getElementById("btn-pass-type").addEventListener("click", () => {
+  if (
+    !appState.isAnswering ||
+    appState.localGuessed ||
+    appState.gameMode !== "type"
+  )
+    return;
+  processWrongAnswer();
+});
+
+function processCorrectAnswer() {
+  appState.localGuessed = true;
+  appState.localCorrect = true;
+  const timeTaken = Date.now() - appState.roundStartTime;
+
+  if (appState.gameMode === "name") {
+    const input = document.getElementById("answer-input");
+    input.disabled = true;
+    input.classList.add("correct-flash");
+    document.getElementById("btn-pass").disabled = true;
+  } else {
+    document.getElementById("btn-submit-type").disabled = true;
+    document.getElementById("btn-pass-type").disabled = true;
+  }
+
+  const feedback = document.getElementById("feedback-message");
+  feedback.textContent = appState.isMultiplayer
+    ? "✅ Correct ! Attente..."
+    : "✅ Correct !";
+  feedback.className = "feedback correct";
+
+  if (appState.isMultiplayer) {
+    sendToHost({
+      type: "CORRECT",
+      id: appState.playerId,
+      timeTaken: timeTaken,
+    });
+  } else {
+    const points = calculatePoints(
+      timeTaken,
+      appState.timerDuration,
+      appState.streak,
+    );
+    appState.score += points;
+    appState.streak++;
+    appState.totalTime += timeTaken;
+    handleEndRound(null, appState.currentPokemon);
+  }
+}
+
+function processWrongAnswer() {
   appState.localGuessed = true;
   appState.localCorrect = false;
-  document.getElementById("answer-input").disabled = true;
-  document.getElementById("btn-pass").disabled = true;
+
+  if (appState.gameMode === "name") {
+    document.getElementById("answer-input").disabled = true;
+    document.getElementById("btn-pass").disabled = true;
+  } else {
+    document.getElementById("btn-submit-type").disabled = true;
+    document.getElementById("btn-pass-type").disabled = true;
+  }
+
   const feedback = document.getElementById("feedback-message");
-  feedback.textContent = "⏭️ Passé !";
-  feedback.className = "feedback";
+  feedback.textContent = "❌ Faux / Passé !";
+  feedback.className = "feedback wrong";
+
   if (appState.isMultiplayer) {
     sendToHost({ type: "SKIP", id: appState.playerId });
   } else {
@@ -733,7 +978,7 @@ document.getElementById("btn-pass").addEventListener("click", () => {
     appState.totalTime += appState.timerDuration * 1000;
     handleEndRound(null, appState.currentPokemon);
   }
-});
+}
 
 function resetHomeMenu() {
   document.getElementById("step-1-gens").style.display = "block";
@@ -758,6 +1003,9 @@ function returnToLobby() {
     p.totalTime = 0;
     p.streak = 0;
   });
+  if (appState.isHost) {
+    document.getElementById("lobby-settings").style.display = "block";
+  }
   updateLobbyUI();
   switchScreen("lobby");
 }
@@ -775,13 +1023,15 @@ document.getElementById("btn-replay").addEventListener("click", () => {
     if (appState.isHost) {
       broadcastMessage({ type: "RETURN_TO_LOBBY" });
     }
-    returnToLobby();
+    returnToLobby(); // Tous les joueurs retournent au salon
   } else {
-    quitToHome();
+    startGame(); // En solo, on relance direct une nouvelle game
   }
 });
 
-document.getElementById("btn-home-results").addEventListener("click", quitToHome);
+document
+  .getElementById("btn-home-results")
+  .addEventListener("click", quitToHome);
 
 document.getElementById("btn-next-step").addEventListener("click", () => {
   if (appState.selectedGens.length === 0) {
@@ -797,14 +1047,25 @@ document.getElementById("btn-prev-step").addEventListener("click", () => {
   document.getElementById("step-1-gens").style.display = "block";
 });
 
-document.getElementById("lobby-rounds-select").addEventListener("change", (e) => {
-  appState.totalRounds = parseInt(e.target.value);
-  broadcastMessage({ type: "UPDATE_SPECS", rounds: appState.totalRounds, time: appState.timerDuration });
+// Sync paramètres Lobby -> Hôte
+document.getElementById("lobby-rounds-input").addEventListener("input", (e) => {
+  appState.totalRounds = parseInt(e.target.value) || 10;
+  broadcastMessage({
+    type: "UPDATE_SPECS",
+    rounds: appState.totalRounds,
+    time: appState.timerDuration,
+    mode: appState.gameMode,
+  });
 });
 
-document.getElementById("lobby-time-select").addEventListener("change", (e) => {
-  appState.timerDuration = parseInt(e.target.value);
-  broadcastMessage({ type: "UPDATE_SPECS", rounds: appState.totalRounds, time: appState.timerDuration });
+document.getElementById("lobby-time-input").addEventListener("input", (e) => {
+  appState.timerDuration = parseInt(e.target.value) || 15;
+  broadcastMessage({
+    type: "UPDATE_SPECS",
+    rounds: appState.totalRounds,
+    time: appState.timerDuration,
+    mode: appState.gameMode,
+  });
 });
 
 window.addEventListener("DOMContentLoaded", () => {

@@ -14,6 +14,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
   </head>
   <body>
+    <!-- ÉCRAN D'ACCUEIL -->
     <div id="screen-home" class="screen active">
       <div class="bg-animated"></div>
       <div class="home-container">
@@ -67,22 +68,38 @@
             </div>
           </div>
 
-          <!-- ÉTAPE 2 : Manches et Temps (Caché par défaut) -->
+          <!-- ÉTAPE 2 : Modes, Manches et Temps (Caché par défaut) -->
           <div id="step-2-specs" style="display: none">
             <div class="setting-group">
-              <h3 class="setting-label">MANCHES</h3>
-              <div class="rounds-grid" id="rounds-grid">
-                <button class="glass-btn" data-value="5">5</button>
-                <button class="glass-btn active" data-value="10">10</button>
-                <button class="glass-btn" data-value="20">20</button>
+              <h3 class="setting-label">MODE DE JEU</h3>
+              <div class="rounds-grid" id="mode-grid">
+                <button class="glass-btn active" data-value="name">
+                  Deviner le Nom
+                </button>
+                <button class="glass-btn" data-value="type">
+                  Deviner le Type
+                </button>
               </div>
 
-              <h3 class="setting-label mt-3">TEMPS PAR MANCHE</h3>
-              <div class="rounds-grid" id="timer-grid">
-                <button class="glass-btn" data-value="10">10s</button>
-                <button class="glass-btn active" data-value="15">15s</button>
-                <button class="glass-btn" data-value="20">20s</button>
-              </div>
+              <h3 class="setting-label mt-3">MANCHES</h3>
+              <input
+                type="number"
+                id="rounds-input"
+                class="glass-input"
+                value="10"
+                min="1"
+                max="1000"
+              />
+
+              <h3 class="setting-label mt-3">TEMPS PAR MANCHE (Secondes)</h3>
+              <input
+                type="number"
+                id="timer-input"
+                class="glass-input"
+                value="15"
+                min="5"
+                max="300"
+              />
             </div>
 
             <!-- Boutons d'action pour l'étape 2 -->
@@ -98,49 +115,82 @@
       </div>
     </div>
 
+    <!-- ÉCRAN DU LOBBY -->
     <div id="screen-lobby" class="screen">
-  <div class="game-topbar w-100" style="justify-content: flex-start; padding: 1rem;">
-    <button class="btn-icon" id="btn-quit-lobby" title="Quitter">
-      <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none">
-        <path d="M18 6L6 18M6 6l12 12"></path>
-      </svg>
-    </button>
-  </div>
-  <div class="bg-animated"></div>
-  <div class="home-container" style="padding-top: 0;">
-    <h2 class="logo-title subtitle">
-      SALON : <span id="lobby-code-display"></span>
-    </h2>
-    <div class="glass-panel">
-      <h3 class="setting-label">JOUEURS PRÉSENTS</h3>
-      <div id="lobby-players" class="lobby-players-list"></div>
+      <div
+        class="game-topbar w-100"
+        style="justify-content: flex-start; padding: 1rem"
+      >
+        <button class="btn-icon" id="btn-quit-lobby" title="Quitter">
+          <svg
+            viewBox="0 0 24 24"
+            width="20"
+            height="20"
+            stroke="currentColor"
+            stroke-width="2"
+            fill="none"
+          >
+            <path d="M18 6L6 18M6 6l12 12"></path>
+          </svg>
+        </button>
+      </div>
+      <div class="bg-animated"></div>
+      <div class="home-container" style="padding-top: 0">
+        <h2 class="logo-title subtitle">
+          SALON : <span id="lobby-code-display"></span>
+        </h2>
+        <div class="glass-panel">
+          <h3 class="setting-label">JOUEURS PRÉSENTS</h3>
+          <div id="lobby-players" class="lobby-players-list"></div>
 
-      <div id="lobby-settings" style="display: none; border-top: 1px solid var(--glass-border); padding-top: 1rem; margin-top: 1rem;">
-        <h3 class="setting-label">MODIFIER LES PARAMÈTRES</h3>
-        <div class="action-row mt-2">
-          <select id="lobby-rounds-select" class="glass-input">
-            <option value="5">5 Manches</option>
-            <option value="10" selected>10 Manches</option>
-            <option value="20">20 Manches</option>
-          </select>
-          <select id="lobby-time-select" class="glass-input">
-            <option value="10">10s par manche</option>
-            <option value="15" selected>15s par manche</option>
-            <option value="20">20s par manche</option>
-          </select>
+          <!-- Paramètres modifiables par l'hôte -->
+          <div
+            id="lobby-settings"
+            style="
+              display: none;
+              border-top: 1px solid var(--glass-border);
+              padding-top: 1rem;
+              margin-top: 1rem;
+            "
+          >
+            <h3 class="setting-label">MODIFIER LES PARAMÈTRES</h3>
+            <div class="action-row mt-2">
+              <input
+                type="number"
+                id="lobby-rounds-input"
+                class="glass-input"
+                placeholder="Manches"
+                title="Nombre de manches"
+              />
+              <input
+                type="number"
+                id="lobby-time-input"
+                class="glass-input"
+                placeholder="Temps (s)"
+                title="Temps en secondes"
+              />
+            </div>
+          </div>
+
+          <button
+            class="btn-primary mt-3 w-100"
+            id="btn-start-multi"
+            style="display: none"
+          >
+            LANCER LA PARTIE
+          </button>
+          <p
+            id="waiting-msg"
+            class="setting-label mt-3 text-center"
+            style="display: none"
+          >
+            En attente de l'hôte...
+          </p>
         </div>
       </div>
-
-      <button class="btn-primary mt-3 w-100" id="btn-start-multi" style="display: none">
-        LANCER LA PARTIE
-      </button>
-      <p id="waiting-msg" class="setting-label mt-3 text-center" style="display: none">
-        En attente de l'hôte...
-      </p>
     </div>
-  </div>
-</div>
 
+    <!-- ÉCRAN DE JEU -->
     <div id="screen-game" class="screen game-bg">
       <div class="game-topbar">
         <button class="btn-icon" id="btn-quit" title="Quitter">
@@ -180,7 +230,9 @@
 
       <div class="answer-zone">
         <div class="feedback" id="feedback-message"></div>
-        <div class="input-group" id="input-group">
+
+        <!-- Mode: Deviner Nom -->
+        <div class="input-group" id="name-input-group">
           <input
             type="text"
             id="answer-input"
@@ -202,6 +254,27 @@
             </svg>
           </button>
         </div>
+
+        <!-- Mode: Deviner Type (Caché par défaut) -->
+        <div
+          class="type-input-group"
+          id="type-input-group"
+          style="display: none"
+        >
+          <div id="type-selector" class="type-selector-grid"></div>
+          <div class="action-row mt-2">
+            <button class="btn-primary" id="btn-submit-type">
+              VALIDER TYPE(S)
+            </button>
+            <button
+              class="btn-pass"
+              id="btn-pass-type"
+              style="width: auto; padding: 0 1rem"
+            >
+              PASSER
+            </button>
+          </div>
+        </div>
       </div>
 
       <div class="history-strip" id="live-history"></div>
@@ -211,6 +284,7 @@
       </div>
     </div>
 
+    <!-- ÉCRAN DES RÉSULTATS -->
     <div id="screen-results" class="screen">
       <div class="bg-animated"></div>
       <div class="results-container">
