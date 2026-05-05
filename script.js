@@ -6,7 +6,7 @@ let supabaseClient = null;
 try {
   supabaseClient = window.supabase.createClient(supabaseUrl, supabaseKey);
 } catch (e) {
-  console.warn("Supabase non configuré.");
+  console.warn("Supabase not configured.");
 }
 
 const generationData = [
@@ -21,7 +21,6 @@ const generationData = [
   { id: 9, label: "GEN IX", sub: "906-1025", range: [906, 1025] },
 ];
 
-// Nouveaux types traduits + ID pour l'API des images
 const typeData = {
   normal: { id: 1, fr: "Normal", color: "#9099A1" },
   fighting: { id: 2, fr: "Combat", color: "#D04164" },
@@ -44,7 +43,7 @@ const typeData = {
 };
 
 let appState = {
-  gameMode: "name", // "name" ou "type"
+  gameMode: "name",
   selectedGens: [1],
   totalRounds: 10,
   timerDuration: 15,
@@ -69,7 +68,8 @@ let appState = {
   playerId: "solo",
   playersData: {},
   finishedPlayers: [],
-  selectedTypes: [], // Pour le mode Type
+  selectedTypes: [],
+  status: "lobby",
 };
 
 function calculatePoints(timeTaken, timerDuration, currentStreak) {
@@ -245,8 +245,11 @@ function updateScoreUI() {
       .forEach((player) => {
         const el = document.createElement("div");
         el.className = "player-score";
-        const streakStr = player.streak > 1 ? ` 🔥${player.streak}` : "";
-        el.textContent = `${player.name}: ${player.score} pts ${streakStr}`;
+        const streakStr =
+          player.streak > 1
+            ? `<span class="streak">🔥${player.streak}</span>`
+            : "<span></span>";
+        el.innerHTML = `<span>${player.name} : ${player.score} pts</span>${streakStr}`;
         container.appendChild(el);
       });
   } else {
@@ -266,8 +269,62 @@ function updateLobbyUI() {
   Object.values(appState.playersData).forEach((player) => {
     const el = document.createElement("div");
     el.className = "lobby-player";
-    el.textContent = player.name;
+    let statusText =
+      player.status === "game"
+        ? " (En jeu)"
+        : player.status === "results"
+          ? " (Résultats)"
+          : " (Prêt)";
+    let hostText = player.isHost ? " 👑" : "";
+    el.textContent = player.name + hostText + statusText;
+    if (player.status === "lobby") el.style.borderColor = "var(--success)";
     list.appendChild(el);
+  });
+}
+
+function updateLobbyControls() {
+  const isH = appState.isHost;
+  document.getElementById("lobby-mode-select").disabled = !isH;
+  document.getElementById("lobby-rounds-input").disabled = !isH;
+  document.getElementById("lobby-time-input").disabled = !isH;
+  document.getElementById("lobby-btn-all-gens").style.display = isH
+    ? "block"
+    : "none";
+  document.getElementById("btn-start-multi").style.display = isH
+    ? "block"
+    : "none";
+  document.getElementById("waiting-msg").style.display = isH ? "none" : "block";
+  renderLobbyGens();
+}
+
+function renderLobbyGens() {
+  const grid = document.getElementById("lobby-gen-grid");
+  if (!grid) return;
+  grid.innerHTML = "";
+  generationData.forEach((gen) => {
+    const btn = document.createElement("button");
+    btn.className =
+      "gen-btn" + (appState.selectedGens.includes(gen.id) ? " active" : "");
+    btn.innerHTML = gen.label + "<span>" + gen.sub + "</span>";
+    if (appState.isHost) {
+      btn.addEventListener("click", () => {
+        if (
+          appState.selectedGens.includes(gen.id) &&
+          appState.selectedGens.length > 1
+        ) {
+          appState.selectedGens = appState.selectedGens.filter(
+            (g) => g !== gen.id,
+          );
+        } else if (!appState.selectedGens.includes(gen.id)) {
+          appState.selectedGens.push(gen.id);
+        }
+        renderLobbyGens();
+        broadcastSettings();
+      });
+    } else {
+      btn.style.cursor = "default";
+    }
+    grid.appendChild(btn);
   });
 }
 
@@ -279,10 +336,7 @@ function renderTypeSelector() {
     const btn = document.createElement("button");
     btn.className = "type-select-btn";
     btn.style.backgroundColor = data.color;
-    btn.innerHTML = `
-      <img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/types/generation-viii/sword-shield/${data.id}.png" alt="${data.fr}">
-      <span>${data.fr}</span>
-    `;
+    btn.innerHTML = `<img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/types/generation-viii/sword-shield/${data.id}.png" alt="${data.fr}"><span>${data.fr}</span>`;
     btn.onclick = () => {
       if (appState.selectedTypes.includes(key)) {
         appState.selectedTypes = appState.selectedTypes.filter(
@@ -437,63 +491,75 @@ function triggerRoundEnd() {
 }
 
 function handlePeerData(data) {
-  if (appState.isHost) {
-    if (data.type === "JOIN") {
-      appState.playersData[data.id] = {
-        id: data.id,
-        name: data.name,
-        score: 0,
-        totalTime: 0,
-        streak: 0,
-      };
-      broadcastMessage({
-        type: "PLAYERS_UPDATE",
-        players: appState.playersData,
-      });
-      updateLobbyUI();
-      return;
-    }
-    if (data.type === "CORRECT" || data.type === "SKIP") {
-      handleHostData(data);
-      return;
-    }
+  if (appState.isHost && (data.type === "CORRECT" || data.type === "SKIP")) {
+    handleHostData(data);
+    return;
   }
 
-  if (data.type === "RETURN_TO_LOBBY") {
-    returnToLobby();
-  }
   if (data.type === "UPDATE_SPECS") {
     appState.totalRounds = data.rounds;
     appState.timerDuration = data.time;
     appState.gameMode = data.mode;
-    document.getElementById("lobby-rounds-input").value = data.rounds;
-    document.getElementById("lobby-time-input").value = data.time;
+    appState.selectedGens = data.gens;
+    if (document.getElementById("lobby-rounds-input")) {
+      document.getElementById("lobby-rounds-input").value = data.rounds;
+      document.getElementById("lobby-time-input").value = data.time;
+      document.getElementById("lobby-mode-select").value = data.mode;
+      renderLobbyGens();
+    }
   }
+
   if (data.type === "PLAYERS_UPDATE") {
-    appState.playersData = data.players;
-    updateLobbyUI();
+    Object.keys(data.players).forEach((id) => {
+      if (appState.playersData[id]) {
+        appState.playersData[id].score = data.players[id].score;
+        appState.playersData[id].streak = data.players[id].streak;
+        appState.playersData[id].totalTime = data.players[id].totalTime;
+      }
+    });
     updateScoreUI();
   }
+
   if (data.type === "START_GAME") {
+    appState.status = "game";
     appState.totalRounds = data.rounds;
     appState.timerDuration = data.time;
     appState.gameMode = data.mode;
+    appState.pokemonQueue = data.queue;
     document.getElementById("live-history").innerHTML = "";
     appState.history = [];
     appState.currentRound = 0;
+    if (appState.roomChannel) {
+      appState.roomChannel.track({
+        name: appState.playerName,
+        status: appState.status,
+        isHost: appState.isHost,
+      });
+    }
     updateScoreUI();
     switchScreen("game");
     toggleLoading(true);
   }
+
   if (data.type === "NEW_ROUND") {
     appState.currentRound = data.round;
     setupPokemon(data.pokemon);
   }
+
   if (data.type === "END_ROUND") {
     handleEndRound(data.finalScores, data.pokemon);
   }
+
   if (data.type === "END_GAME") {
     appState.playersData = data.finalScores;
+    appState.status = "results";
+    if (appState.roomChannel) {
+      appState.roomChannel.track({
+        name: appState.playerName,
+        status: appState.status,
+        isHost: appState.isHost,
+      });
+    }
     showResults();
   }
 }
@@ -558,7 +624,15 @@ function setupPokemon(pokemon) {
 function handleEndRound(newPlayersData, pokemon) {
   stopTimer();
   appState.isAnswering = false;
-  if (newPlayersData) appState.playersData = newPlayersData;
+  if (newPlayersData) {
+    Object.keys(newPlayersData).forEach((id) => {
+      if (appState.playersData[id]) {
+        appState.playersData[id].score = newPlayersData[id].score;
+        appState.playersData[id].streak = newPlayersData[id].streak;
+        appState.playersData[id].totalTime = newPlayersData[id].totalTime;
+      }
+    });
+  }
   updateScoreUI();
 
   const input = document.getElementById("answer-input");
@@ -574,7 +648,6 @@ function handleEndRound(newPlayersData, pokemon) {
     confettiEffect.launch();
   }
 
-  // Toujours afficher les types à la fin
   const badges = document.getElementById("type-badges");
   badges.innerHTML = "";
   pokemon.types.forEach((t) => {
@@ -606,15 +679,24 @@ function handleEndRound(newPlayersData, pokemon) {
 
   appState.history.push({ pokemon: pokemon, correct: appState.localCorrect });
   updateHistoryUI();
-  setTimeout(proceedNext, 3000); // 3s pour bien voir les types
+  setTimeout(proceedNext, 3000);
 }
 
 function proceedNext() {
   if (appState.isMultiplayer && !appState.isHost) return;
   appState.currentRound++;
   if (appState.currentRound >= appState.totalRounds) {
-    if (appState.isMultiplayer && appState.isHost)
+    if (appState.isMultiplayer && appState.isHost) {
       broadcastMessage({ type: "END_GAME", finalScores: appState.playersData });
+    }
+    appState.status = "results";
+    if (appState.roomChannel) {
+      appState.roomChannel.track({
+        name: appState.playerName,
+        status: appState.status,
+        isHost: appState.isHost,
+      });
+    }
     showResults();
   } else {
     loadNextPokemon();
@@ -657,6 +739,17 @@ function showResults() {
   }
 }
 
+function broadcastSettings() {
+  if (!appState.isHost) return;
+  broadcastMessage({
+    type: "UPDATE_SPECS",
+    rounds: appState.totalRounds,
+    time: appState.timerDuration,
+    mode: appState.gameMode,
+    gens: appState.selectedGens,
+  });
+}
+
 function initUI() {
   const grid = document.getElementById("gen-grid");
   generationData.forEach((gen) => {
@@ -680,12 +773,22 @@ function initUI() {
     });
     grid.appendChild(btn);
   });
+
   document.getElementById("btn-all-gens").addEventListener("click", () => {
     appState.selectedGens = generationData.map((g) => g.id);
     document
-      .querySelectorAll(".gen-btn")
+      .querySelectorAll("#gen-grid .gen-btn")
       .forEach((b) => b.classList.add("active"));
   });
+
+  document
+    .getElementById("lobby-btn-all-gens")
+    .addEventListener("click", () => {
+      if (!appState.isHost) return;
+      appState.selectedGens = generationData.map((g) => g.id);
+      renderLobbyGens();
+      broadcastSettings();
+    });
 
   document.querySelectorAll("#mode-grid .glass-btn").forEach((btn) => {
     btn.addEventListener("click", (e) => {
@@ -697,7 +800,6 @@ function initUI() {
     });
   });
 
-  // Écouteurs pour les champs personnalisés Etape 2
   document.getElementById("rounds-input").addEventListener("input", (e) => {
     appState.totalRounds = parseInt(e.target.value) || 10;
   });
@@ -717,6 +819,8 @@ function startGame() {
   appState.totalTime = 0;
   appState.currentRound = 0;
   appState.history = [];
+  appState.status = "game";
+
   document.getElementById("live-history").innerHTML = "";
 
   if (appState.isMultiplayer) {
@@ -725,8 +829,14 @@ function startGame() {
       p.totalTime = 0;
       p.streak = 0;
     });
+    appState.roomChannel.track({
+      name: appState.playerName,
+      status: appState.status,
+      isHost: appState.isHost,
+    });
     broadcastMessage({
       type: "START_GAME",
+      queue: appState.pokemonQueue,
       rounds: appState.totalRounds,
       time: appState.timerDuration,
       mode: appState.gameMode,
@@ -758,6 +868,7 @@ document.getElementById("btn-host").addEventListener("click", () => {
   appState.playerName = document.getElementById("player-name").value || "Hôte";
   appState.isMultiplayer = true;
   appState.isHost = true;
+  appState.status = "lobby";
 
   const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
   let code = "";
@@ -767,37 +878,31 @@ document.getElementById("btn-host").addEventListener("click", () => {
   appState.playerId = "host-" + Date.now();
 
   appState.playersData = {};
-  appState.playersData[appState.playerId] = {
-    id: appState.playerId,
-    name: appState.playerName,
-    score: 0,
-    totalTime: 0,
-    streak: 0,
-  };
 
-  appState.roomChannel = supabaseClient.channel("room-" + appState.roomCode);
-  appState.roomChannel
-    .on("broadcast", { event: "game" }, ({ payload }) => {
-      handlePeerData(payload);
-    })
-    .subscribe((status) => {
-      if (status === "SUBSCRIBED") {
-        window.history.pushState({}, "", "/" + appState.roomCode);
-        document.getElementById("lobby-settings").style.display = "block";
-        document.getElementById("lobby-rounds-input").value =
-          appState.totalRounds;
-        document.getElementById("lobby-time-input").value =
-          appState.timerDuration;
-        document.getElementById("lobby-code-display").textContent =
-          appState.roomCode;
-        document.getElementById("btn-start-multi").style.display = "block";
-        document.getElementById("waiting-msg").style.display = "none";
-        btn.textContent = originalText;
-        btn.disabled = false;
-        updateLobbyUI();
-        switchScreen("lobby");
-      }
-    });
+  setupRoomChannel();
+
+  appState.roomChannel.subscribe(async (status) => {
+    if (status === "SUBSCRIBED") {
+      await appState.roomChannel.track({
+        name: appState.playerName,
+        status: appState.status,
+        isHost: true,
+      });
+      window.history.pushState({}, "", "/" + appState.roomCode);
+      document.getElementById("lobby-rounds-input").value =
+        appState.totalRounds;
+      document.getElementById("lobby-time-input").value =
+        appState.timerDuration;
+      document.getElementById("lobby-mode-select").value = appState.gameMode;
+      document.getElementById("lobby-code-display").textContent =
+        appState.roomCode;
+
+      updateLobbyControls();
+      btn.textContent = originalText;
+      btn.disabled = false;
+      switchScreen("lobby");
+    }
+  });
 });
 
 document.getElementById("btn-join").addEventListener("click", () => {
@@ -823,38 +928,94 @@ document.getElementById("btn-join").addEventListener("click", () => {
     document.getElementById("player-name").value || "Joueur";
   appState.isMultiplayer = true;
   appState.isHost = false;
+  appState.status = "lobby";
   appState.playerId = "player-" + Date.now();
 
-  appState.roomChannel = supabaseClient.channel("room-" + appState.roomCode);
-  appState.roomChannel
-    .on("broadcast", { event: "game" }, ({ payload }) => {
-      handlePeerData(payload);
-    })
-    .subscribe((status) => {
-      if (status === "SUBSCRIBED") {
-        window.history.pushState({}, "", "/" + appState.roomCode);
-        document.getElementById("lobby-settings").style.display = "none";
-        broadcastMessage({
-          type: "JOIN",
-          name: appState.playerName,
-          id: appState.playerId,
-        });
-        document.getElementById("lobby-code-display").textContent =
-          appState.roomCode;
-        document.getElementById("waiting-msg").style.display = "block";
-        document.getElementById("btn-start-multi").style.display = "none";
-        btn.textContent = originalText;
-        btn.disabled = false;
-        switchScreen("lobby");
-      }
-    });
+  setupRoomChannel();
+
+  appState.roomChannel.subscribe(async (status) => {
+    if (status === "SUBSCRIBED") {
+      await appState.roomChannel.track({
+        name: appState.playerName,
+        status: appState.status,
+        isHost: false,
+      });
+      window.history.pushState({}, "", "/" + appState.roomCode);
+      document.getElementById("lobby-code-display").textContent =
+        appState.roomCode;
+
+      updateLobbyControls();
+      btn.textContent = originalText;
+      btn.disabled = false;
+      switchScreen("lobby");
+    }
+  });
 });
 
+function setupRoomChannel() {
+  appState.roomChannel = supabaseClient.channel("room-" + appState.roomCode, {
+    config: { presence: { key: appState.playerId } },
+  });
+
+  appState.roomChannel.on("broadcast", { event: "game" }, ({ payload }) => {
+    handlePeerData(payload);
+  });
+
+  appState.roomChannel.on("presence", { event: "sync" }, () => {
+    const state = appState.roomChannel.presenceState();
+    const onlineIds = Object.keys(state);
+
+    Object.keys(appState.playersData).forEach((id) => {
+      if (!onlineIds.includes(id)) {
+        delete appState.playersData[id];
+      }
+    });
+
+    onlineIds.forEach((id) => {
+      const pInfo = state[id][0];
+      if (!appState.playersData[id]) {
+        appState.playersData[id] = {
+          id: id,
+          name: pInfo.name,
+          score: 0,
+          totalTime: 0,
+          streak: 0,
+          status: pInfo.status || "lobby",
+          isHost: pInfo.isHost || false,
+        };
+      } else {
+        appState.playersData[id].status = pInfo.status;
+        appState.playersData[id].isHost = pInfo.isHost;
+      }
+    });
+
+    const hosts = Object.values(appState.playersData).filter((p) => p.isHost);
+    if (hosts.length === 0 && onlineIds.length > 0) {
+      const newHostId = onlineIds.sort()[0];
+      if (appState.playersData[newHostId]) {
+        appState.playersData[newHostId].isHost = true;
+      }
+      if (newHostId === appState.playerId) {
+        appState.isHost = true;
+        updateLobbyControls();
+        appState.roomChannel.track({
+          name: appState.playerName,
+          status: appState.status,
+          isHost: true,
+        });
+      }
+    }
+
+    updateLobbyUI();
+    updateScoreUI();
+  });
+}
+
 document.getElementById("btn-start-multi").addEventListener("click", () => {
+  if (!appState.isHost) return;
   startGame();
 });
 
-// LOGIQUE POUR LE MODE "NOM"
 document.getElementById("answer-input").addEventListener("input", (e) => {
   if (
     !appState.isAnswering ||
@@ -882,7 +1043,6 @@ document.getElementById("btn-pass").addEventListener("click", () => {
   processWrongAnswer();
 });
 
-// LOGIQUE POUR LE MODE "TYPE"
 document.getElementById("btn-submit-type").addEventListener("click", () => {
   if (
     !appState.isAnswering ||
@@ -900,7 +1060,6 @@ document.getElementById("btn-submit-type").addEventListener("click", () => {
   if (isCorrect) {
     processCorrectAnswer();
   } else {
-    // Si faux, on marque comme raté immédiatement (tu peux aussi choisir de les laisser réessayer en vidant juste le tableau)
     processWrongAnswer();
   }
 });
@@ -987,6 +1146,7 @@ function resetHomeMenu() {
 
 function quitToHome() {
   if (appState.roomChannel) {
+    appState.roomChannel.untrack();
     supabaseClient.removeChannel(appState.roomChannel);
     appState.roomChannel = null;
   }
@@ -1003,9 +1163,17 @@ function returnToLobby() {
     p.totalTime = 0;
     p.streak = 0;
   });
-  if (appState.isHost) {
-    document.getElementById("lobby-settings").style.display = "block";
+
+  appState.status = "lobby";
+  if (appState.roomChannel) {
+    appState.roomChannel.track({
+      name: appState.playerName,
+      status: appState.status,
+      isHost: appState.isHost,
+    });
   }
+
+  updateLobbyControls();
   updateLobbyUI();
   switchScreen("lobby");
 }
@@ -1020,12 +1188,9 @@ document.getElementById("btn-quit").addEventListener("click", () => {
 
 document.getElementById("btn-replay").addEventListener("click", () => {
   if (appState.isMultiplayer) {
-    if (appState.isHost) {
-      broadcastMessage({ type: "RETURN_TO_LOBBY" });
-    }
-    returnToLobby(); // Tous les joueurs retournent au salon
+    returnToLobby();
   } else {
-    startGame(); // En solo, on relance direct une nouvelle game
+    startGame();
   }
 });
 
@@ -1047,25 +1212,22 @@ document.getElementById("btn-prev-step").addEventListener("click", () => {
   document.getElementById("step-1-gens").style.display = "block";
 });
 
-// Sync paramètres Lobby -> Hôte
 document.getElementById("lobby-rounds-input").addEventListener("input", (e) => {
+  if (!appState.isHost) return;
   appState.totalRounds = parseInt(e.target.value) || 10;
-  broadcastMessage({
-    type: "UPDATE_SPECS",
-    rounds: appState.totalRounds,
-    time: appState.timerDuration,
-    mode: appState.gameMode,
-  });
+  broadcastSettings();
 });
 
 document.getElementById("lobby-time-input").addEventListener("input", (e) => {
+  if (!appState.isHost) return;
   appState.timerDuration = parseInt(e.target.value) || 15;
-  broadcastMessage({
-    type: "UPDATE_SPECS",
-    rounds: appState.totalRounds,
-    time: appState.timerDuration,
-    mode: appState.gameMode,
-  });
+  broadcastSettings();
+});
+
+document.getElementById("lobby-mode-select").addEventListener("change", (e) => {
+  if (!appState.isHost) return;
+  appState.gameMode = e.target.value;
+  broadcastSettings();
 });
 
 window.addEventListener("DOMContentLoaded", () => {

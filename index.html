@@ -14,7 +14,6 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
   </head>
   <body>
-    <!-- ÉCRAN D'ACCUEIL -->
     <div id="screen-home" class="screen active">
       <div class="bg-animated"></div>
       <div class="home-container">
@@ -26,7 +25,6 @@
         </header>
 
         <div class="glass-panel">
-          <!-- Nom du joueur (toujours visible) -->
           <div class="setting-group">
             <input
               type="text"
@@ -37,7 +35,6 @@
             />
           </div>
 
-          <!-- ÉTAPE 1 : Générations et Rejoindre -->
           <div id="step-1-gens">
             <div class="setting-group" id="host-settings-panel">
               <h3 class="setting-label">GÉNÉRATIONS</h3>
@@ -47,14 +44,12 @@
               </button>
             </div>
 
-            <!-- Bouton pour passer à l'étape 2 -->
             <div class="action-row mt-3">
               <button class="btn-primary w-100" id="btn-next-step">
                 SUIVANT ➔
               </button>
             </div>
 
-            <!-- L'espace pour rejoindre reste à l'étape 1 -->
             <div class="action-row mt-2">
               <input
                 type="text"
@@ -68,7 +63,6 @@
             </div>
           </div>
 
-          <!-- ÉTAPE 2 : Modes, Manches et Temps (Caché par défaut) -->
           <div id="step-2-specs" style="display: none">
             <div class="setting-group">
               <h3 class="setting-label">MODE DE JEU</h3>
@@ -102,7 +96,6 @@
               />
             </div>
 
-            <!-- Boutons d'action pour l'étape 2 -->
             <div class="action-row mt-3">
               <button class="btn-secondary" id="btn-prev-step">⬅ RETOUR</button>
             </div>
@@ -115,7 +108,6 @@
       </div>
     </div>
 
-    <!-- ÉCRAN DU LOBBY -->
     <div id="screen-lobby" class="screen">
       <div
         class="game-topbar w-100"
@@ -139,21 +131,25 @@
         <h2 class="logo-title subtitle">
           SALON : <span id="lobby-code-display"></span>
         </h2>
-        <div class="glass-panel">
+        <div class="glass-panel" style="width: 100%; max-width: 600px">
           <h3 class="setting-label">JOUEURS PRÉSENTS</h3>
           <div id="lobby-players" class="lobby-players-list"></div>
 
-          <!-- Paramètres modifiables par l'hôte -->
           <div
             id="lobby-settings"
             style="
-              display: none;
               border-top: 1px solid var(--glass-border);
               padding-top: 1rem;
               margin-top: 1rem;
             "
           >
-            <h3 class="setting-label">MODIFIER LES PARAMÈTRES</h3>
+            <h3 class="setting-label">PARAMÈTRES DE LA PARTIE</h3>
+            <div class="action-row mt-2">
+              <select id="lobby-mode-select" class="glass-input">
+                <option value="name">Deviner le Nom</option>
+                <option value="type">Deviner le Type</option>
+              </select>
+            </div>
             <div class="action-row mt-2">
               <input
                 type="number"
@@ -170,6 +166,11 @@
                 title="Temps en secondes"
               />
             </div>
+            <h3 class="setting-label mt-3">GÉNÉRATIONS</h3>
+            <div class="gen-grid" id="lobby-gen-grid"></div>
+            <button class="btn-outline" id="lobby-btn-all-gens">
+              Toutes les Générations
+            </button>
           </div>
 
           <button
@@ -190,101 +191,106 @@
       </div>
     </div>
 
-    <!-- ÉCRAN DE JEU -->
     <div id="screen-game" class="screen game-bg">
-      <div class="game-topbar">
-        <button class="btn-icon" id="btn-quit" title="Quitter">
-          <svg
-            viewBox="0 0 24 24"
-            width="20"
-            height="20"
-            stroke="currentColor"
-            stroke-width="2"
-            fill="none"
-          >
-            <path d="M18 6L6 18M6 6l12 12"></path>
-          </svg>
-        </button>
-        <div id="multi-scores" class="multi-scores"></div>
-        <div class="score-pill" id="solo-score-pill">
-          <span class="score-label">SCORE</span>
-          <span id="score-display">0</span>
-        </div>
-        <div class="round-pill" id="round-display">1 / 10</div>
-      </div>
-
-      <div class="timer-wrap">
-        <div class="timer-track">
-          <div class="timer-bar" id="timer-bar"></div>
-        </div>
-        <div class="timer-number" id="timer-number">15</div>
-      </div>
-
-      <div class="pokemon-arena" id="pokemon-card">
-        <div class="arena-glow" id="arena-glow"></div>
-        <div class="arena-platform"></div>
-        <img id="pokemon-img" class="pokemon-img" src="" alt="Pokemon" />
-      </div>
-
-      <div class="type-row" id="type-badges"></div>
-
-      <div class="answer-zone">
-        <div class="feedback" id="feedback-message"></div>
-
-        <!-- Mode: Deviner Nom -->
-        <div class="input-group" id="name-input-group">
-          <input
-            type="text"
-            id="answer-input"
-            class="answer-input"
-            placeholder="Nom du Pokémon..."
-            autocomplete="off"
-            spellcheck="false"
-          />
-          <button class="btn-pass" id="btn-pass">
-            <svg
-              viewBox="0 0 24 24"
-              width="24"
-              height="24"
-              stroke="currentColor"
-              stroke-width="2"
-              fill="none"
-            >
-              <path d="M5 12h14M12 5l7 7-7 7"></path>
-            </svg>
-          </button>
-        </div>
-
-        <!-- Mode: Deviner Type (Caché par défaut) -->
-        <div
-          class="type-input-group"
-          id="type-input-group"
-          style="display: none"
-        >
-          <div id="type-selector" class="type-selector-grid"></div>
-          <div class="action-row mt-2">
-            <button class="btn-primary" id="btn-submit-type">
-              VALIDER TYPE(S)
-            </button>
-            <button
-              class="btn-pass"
-              id="btn-pass-type"
-              style="width: auto; padding: 0 1rem"
-            >
-              PASSER
-            </button>
+      <div class="game-layout">
+        <aside class="game-sidebar">
+          <div id="multi-scores" class="multi-scores"></div>
+          <div class="score-pill" id="solo-score-pill">
+            <span class="score-label">SCORE</span>
+            <span id="score-display">0</span>
           </div>
-        </div>
-      </div>
+        </aside>
 
-      <div class="history-strip" id="live-history"></div>
+        <main class="game-main">
+          <div class="game-topbar">
+            <button class="btn-icon" id="btn-quit" title="Quitter">
+              <svg
+                viewBox="0 0 24 24"
+                width="20"
+                height="20"
+                stroke="currentColor"
+                stroke-width="2"
+                fill="none"
+              >
+                <path d="M18 6L6 18M6 6l12 12"></path>
+              </svg>
+            </button>
+            <div class="round-pill" id="round-display">1 / 10</div>
+          </div>
 
-      <div class="loading-overlay hidden" id="loading-overlay">
-        <div class="pokeball-spin"><div class="pokeball-spin-inner"></div></div>
+          <div class="timer-wrap">
+            <div class="timer-track">
+              <div class="timer-bar" id="timer-bar"></div>
+            </div>
+            <div class="timer-number" id="timer-number">15</div>
+          </div>
+
+          <div class="pokemon-arena" id="pokemon-card">
+            <div class="arena-glow" id="arena-glow"></div>
+            <div class="arena-platform"></div>
+            <img id="pokemon-img" class="pokemon-img" src="" alt="Pokemon" />
+          </div>
+
+          <div class="type-row" id="type-badges"></div>
+
+          <div class="answer-zone">
+            <div class="feedback" id="feedback-message"></div>
+
+            <div class="input-group" id="name-input-group">
+              <input
+                type="text"
+                id="answer-input"
+                class="answer-input"
+                placeholder="Nom du Pokémon..."
+                autocomplete="off"
+                spellcheck="false"
+              />
+              <button class="btn-pass" id="btn-pass">
+                <svg
+                  viewBox="0 0 24 24"
+                  width="24"
+                  height="24"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  fill="none"
+                >
+                  <path d="M5 12h14M12 5l7 7-7 7"></path>
+                </svg>
+              </button>
+            </div>
+
+            <div
+              class="type-input-group"
+              id="type-input-group"
+              style="display: none"
+            >
+              <div id="type-selector" class="type-selector-grid"></div>
+              <div class="action-row mt-2">
+                <button class="btn-primary" id="btn-submit-type">
+                  VALIDER TYPE(S)
+                </button>
+                <button
+                  class="btn-pass"
+                  id="btn-pass-type"
+                  style="width: auto; padding: 0 1rem"
+                >
+                  PASSER
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="history-strip" id="live-history"></div>
+
+          <div class="loading-overlay hidden" id="loading-overlay">
+            <div class="pokeball-spin">
+              <div class="pokeball-spin-inner"></div>
+            </div>
+          </div>
+        </main>
       </div>
     </div>
 
-    <!-- ÉCRAN DES RÉSULTATS -->
     <div id="screen-results" class="screen">
       <div class="bg-animated"></div>
       <div class="results-container">
