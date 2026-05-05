@@ -7,97 +7,117 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Poppins:wght@400;500;600;700&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;800&family=Poppins:wght@400;500;700&display=swap"
       rel="stylesheet"
     />
     <link rel="stylesheet" href="style.css" />
-    <script src="https://unpkg.com/peerjs@1.5.1/dist/peerjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
   </head>
   <body>
     <div id="screen-home" class="screen active">
-      <div class="bg-deco"></div>
+      <div class="bg-animated"></div>
       <div class="home-container">
         <header class="home-header">
           <div class="pokeball-logo">
             <div class="pokeball-logo-inner"></div>
           </div>
-          <h1 class="logo-title">PokeBlind</h1>
+          <h1 class="logo-title">POKEBLIND</h1>
         </header>
 
-        <div class="settings-card">
+        <div class="glass-panel">
+          <!-- Nom du joueur (toujours visible) -->
           <div class="setting-group">
             <input
               type="text"
               id="player-name"
-              class="answer-input"
-              placeholder="Ton pseudo"
+              class="glass-input"
+              placeholder="Saisis ton pseudo"
               autocomplete="off"
             />
           </div>
 
-          <div class="setting-group" id="host-settings-panel">
-            <h3 class="setting-label">GÉNÉRATIONS</h3>
-            <div class="gen-grid" id="gen-grid"></div>
-            <button class="btn-all-gens" id="btn-all-gens">
-              Toutes les Générations
-            </button>
-
-            <h3 class="setting-label" style="margin-top: 1rem">MANCHES</h3>
-            <div class="rounds-grid" id="rounds-grid">
-              <button class="round-btn" data-value="5">5</button>
-              <button class="round-btn active" data-value="10">10</button>
-              <button class="round-btn" data-value="20">20</button>
+          <!-- ÉTAPE 1 : Générations et Rejoindre -->
+          <div id="step-1-gens">
+            <div class="setting-group" id="host-settings-panel">
+              <h3 class="setting-label">GÉNÉRATIONS</h3>
+              <div class="gen-grid" id="gen-grid"></div>
+              <button class="btn-outline" id="btn-all-gens">
+                Toutes les Générations
+              </button>
             </div>
 
-            <h3 class="setting-label" style="margin-top: 1rem">
-              TEMPS PAR MANCHE
-            </h3>
-            <div class="rounds-grid" id="timer-grid">
-              <button class="timer-btn" data-value="10">10s</button>
-              <button class="timer-btn active" data-value="15">15s</button>
-              <button class="timer-btn" data-value="20">20s</button>
+            <!-- Bouton pour passer à l'étape 2 -->
+            <div class="action-row mt-3">
+              <button class="btn-primary w-100" id="btn-next-step">
+                SUIVANT ➔
+              </button>
+            </div>
+
+            <!-- L'espace pour rejoindre reste à l'étape 1 -->
+            <div class="action-row mt-2">
+              <input
+                type="text"
+                id="join-code"
+                class="glass-input code-input"
+                placeholder="CODE"
+                autocomplete="off"
+                maxlength="4"
+              />
+              <button class="btn-secondary" id="btn-join">REJOINDRE</button>
             </div>
           </div>
 
-          <div class="multiplayer-actions">
-            <button class="btn-play" id="btn-solo">SOLO</button>
-            <button class="btn-play" id="btn-host">HÉBERGER</button>
-          </div>
-          <div class="join-group">
-            <input
-              type="text"
-              id="join-code"
-              class="answer-input code-input"
-              placeholder="CODE SALON"
-              autocomplete="off"
-              maxlength="4"
-            />
-            <button class="btn-secondary" id="btn-join">REJOINDRE</button>
+          <!-- ÉTAPE 2 : Manches et Temps (Caché par défaut) -->
+          <div id="step-2-specs" style="display: none">
+            <div class="setting-group">
+              <h3 class="setting-label">MANCHES</h3>
+              <div class="rounds-grid" id="rounds-grid">
+                <button class="glass-btn" data-value="5">5</button>
+                <button class="glass-btn active" data-value="10">10</button>
+                <button class="glass-btn" data-value="20">20</button>
+              </div>
+
+              <h3 class="setting-label mt-3">TEMPS PAR MANCHE</h3>
+              <div class="rounds-grid" id="timer-grid">
+                <button class="glass-btn" data-value="10">10s</button>
+                <button class="glass-btn active" data-value="15">15s</button>
+                <button class="glass-btn" data-value="20">20s</button>
+              </div>
+            </div>
+
+            <!-- Boutons d'action pour l'étape 2 -->
+            <div class="action-row mt-3">
+              <button class="btn-secondary" id="btn-prev-step">⬅ RETOUR</button>
+            </div>
+            <div class="action-row mt-2">
+              <button class="btn-primary" id="btn-solo">SOLO</button>
+              <button class="btn-primary" id="btn-host">HÉBERGER</button>
+            </div>
           </div>
         </div>
       </div>
     </div>
 
     <div id="screen-lobby" class="screen">
-      <div class="bg-deco"></div>
+      <div class="bg-animated"></div>
       <div class="home-container">
-        <h2 class="logo-title">
+        <h2 class="logo-title subtitle">
           SALON : <span id="lobby-code-display"></span>
         </h2>
-        <div class="settings-card">
+        <div class="glass-panel">
           <h3 class="setting-label">JOUEURS PRÉSENTS</h3>
           <div id="lobby-players" class="lobby-players-list"></div>
           <button
-            class="btn-play"
+            class="btn-primary mt-3 w-100"
             id="btn-start-multi"
-            style="display: none; margin-top: 1rem"
+            style="display: none"
           >
             LANCER LA PARTIE
           </button>
           <p
             id="waiting-msg"
-            class="setting-label"
-            style="text-align: center; display: none"
+            class="setting-label mt-3 text-center"
+            style="display: none"
           >
             En attente de l'hôte...
           </p>
@@ -105,9 +125,20 @@
       </div>
     </div>
 
-    <div id="screen-game" class="screen">
+    <div id="screen-game" class="screen game-bg">
       <div class="game-topbar">
-        <button class="btn-icon" id="btn-quit" title="Quitter">✕</button>
+        <button class="btn-icon" id="btn-quit" title="Quitter">
+          <svg
+            viewBox="0 0 24 24"
+            width="20"
+            height="20"
+            stroke="currentColor"
+            stroke-width="2"
+            fill="none"
+          >
+            <path d="M18 6L6 18M6 6l12 12"></path>
+          </svg>
+        </button>
         <div id="multi-scores" class="multi-scores"></div>
         <div class="score-pill" id="solo-score-pill">
           <span class="score-label">SCORE</span>
@@ -125,6 +156,7 @@
 
       <div class="pokemon-arena" id="pokemon-card">
         <div class="arena-glow" id="arena-glow"></div>
+        <div class="arena-platform"></div>
         <img id="pokemon-img" class="pokemon-img" src="" alt="Pokemon" />
       </div>
 
@@ -137,11 +169,22 @@
             type="text"
             id="answer-input"
             class="answer-input"
-            placeholder="Tapez le nom..."
+            placeholder="Nom du Pokémon..."
             autocomplete="off"
             spellcheck="false"
           />
-          <button class="btn-pass" id="btn-pass">Passer</button>
+          <button class="btn-pass" id="btn-pass">
+            <svg
+              viewBox="0 0 24 24"
+              width="24"
+              height="24"
+              stroke="currentColor"
+              stroke-width="2"
+              fill="none"
+            >
+              <path d="M5 12h14M12 5l7 7-7 7"></path>
+            </svg>
+          </button>
         </div>
       </div>
 
@@ -153,12 +196,13 @@
     </div>
 
     <div id="screen-results" class="screen">
+      <div class="bg-animated"></div>
       <div class="results-container">
-        <h2 class="results-title">FIN DE PARTIE</h2>
+        <h2 class="logo-title subtitle">RÉSULTATS</h2>
         <div class="results-score" id="results-score"></div>
-        <div class="results-list" id="results-list"></div>
-        <div class="results-actions">
-          <button class="btn-play" id="btn-replay">REJOUER</button>
+        <div class="results-list glass-panel" id="results-list"></div>
+        <div class="action-row w-100 mt-3">
+          <button class="btn-primary" id="btn-replay">REJOUER</button>
           <button class="btn-secondary" id="btn-home-results">ACCUEIL</button>
         </div>
       </div>
