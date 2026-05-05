@@ -1,6 +1,5 @@
 const supabaseUrl = "https://skrgmhdcvezxpyybwssn.supabase.co";
-const supabaseKey =
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNrcmdtaGRjdmV6eHB5eWJ3c3NuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc5ODE0MjUsImV4cCI6MjA5MzU1NzQyNX0.SXIL3dhqATc_F3zB2B_ELjAxMZ0vFDJ-sxBC-bdo2EE";
+const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNrcmdtaGRjdmV6eHB5eWJ3c3NuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc5ODE0MjUsImV4cCI6MjA5MzU1NzQyNX0.SXIL3dhqATc_F3zB2B_ELjAxMZ0vFDJ-sxBC-bdo2EE";
 
 let supabaseClient = null;
 try {
@@ -72,10 +71,7 @@ let appState = {
 function calculatePoints(timeTaken, timerDuration, currentStreak) {
   const baseScore = 500;
   const maxTimeBonus = 500;
-  const timeBonus = Math.max(
-    0,
-    Math.floor(maxTimeBonus * (1 - timeTaken / (timerDuration * 1000))),
-  );
+  const timeBonus = Math.max(0, Math.floor(maxTimeBonus * (1 - timeTaken / (timerDuration * 1000))));
   const streakMultiplier = Math.min(2.0, 1 + (currentStreak || 0) * 0.2);
   return Math.floor((baseScore + timeBonus) * streakMultiplier);
 }
@@ -148,21 +144,14 @@ class ConfettiGenerator {
     this.canvas.style.display = "none";
   }
 }
-const confettiEffect = new ConfettiGenerator(
-  document.getElementById("confetti-canvas"),
-);
+const confettiEffect = new ConfettiGenerator(document.getElementById("confetti-canvas"));
 
 function normalizeText(str) {
-  return str
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z0-9]/g, "");
+  return str.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
 }
 
 function checkMatch(input, target) {
-  const nIn = normalizeText(input),
-    nTar = normalizeText(target);
+  const nIn = normalizeText(input), nTar = normalizeText(target);
   return nIn === nTar && nIn.length > 0;
 }
 
@@ -186,17 +175,13 @@ function buildQueue() {
 }
 
 function switchScreen(id) {
-  document
-    .querySelectorAll(".screen")
-    .forEach((s) => s.classList.remove("active"));
+  document.querySelectorAll(".screen").forEach((s) => s.classList.remove("active"));
   document.getElementById("screen-" + id).classList.add("active");
 }
 
 function toggleLoading(visible) {
   const overlay = document.getElementById("loading-overlay");
-  visible
-    ? overlay.classList.remove("hidden")
-    : overlay.classList.add("hidden");
+  visible ? overlay.classList.remove("hidden") : overlay.classList.add("hidden");
 }
 
 async function fetchPokemonData(id) {
@@ -204,17 +189,14 @@ async function fetchPokemonData(id) {
     fetch("https://pokeapi.co/api/v2/pokemon/" + id),
     fetch("https://pokeapi.co/api/v2/pokemon-species/" + id),
   ]);
-  const p1 = await res1.json(),
-    p2 = await res2.json();
+  const p1 = await res1.json(), p2 = await res2.json();
   const fr = p2.names.find((n) => n.language.name === "fr");
   const en = p2.names.find((n) => n.language.name === "en");
   return {
     id,
     nameFr: fr ? fr.name : p1.name,
     nameEn: en ? en.name : p1.name,
-    imageUrl:
-      p1.sprites?.other?.["official-artwork"]?.front_default ||
-      p1.sprites?.front_default,
+    imageUrl: p1.sprites?.other?.["official-artwork"]?.front_default || p1.sprites?.front_default,
     types: p1.types.map((t) => t.type.name),
   };
 }
@@ -250,11 +232,9 @@ function updateScoreUI() {
     document.getElementById("multi-scores").style.display = "none";
     document.getElementById("solo-score-pill").style.display = "flex";
     const streakStr = appState.streak > 1 ? ` 🔥${appState.streak}` : "";
-    document.getElementById("score-display").textContent =
-      `${appState.score} pts ${streakStr}`;
+    document.getElementById("score-display").textContent = `${appState.score} pts ${streakStr}`;
   }
-  document.getElementById("round-display").textContent =
-    appState.currentRound + 1 + " / " + appState.totalRounds;
+  document.getElementById("round-display").textContent = appState.currentRound + 1 + " / " + appState.totalRounds;
 }
 
 function updateLobbyUI() {
@@ -333,11 +313,7 @@ function stopTimer() {
 
 function broadcastMessage(data) {
   if (appState.roomChannel) {
-    appState.roomChannel.send({
-      type: "broadcast",
-      event: "game",
-      payload: data,
-    });
+    appState.roomChannel.send({ type: "broadcast", event: "game", payload: data });
   }
 }
 
@@ -356,11 +332,7 @@ function handleHostData(data) {
   if (!appState.finishedPlayers.includes(data.id)) {
     appState.finishedPlayers.push(data.id);
     if (data.type === "CORRECT") {
-      const points = calculatePoints(
-        data.timeTaken,
-        appState.timerDuration,
-        player.streak || 0,
-      );
+      const points = calculatePoints(data.timeTaken, appState.timerDuration, player.streak || 0);
       player.score += points;
       player.streak = (player.streak || 0) + 1;
       player.totalTime += data.timeTaken;
@@ -407,10 +379,7 @@ function handlePeerData(data) {
         totalTime: 0,
         streak: 0,
       };
-      broadcastMessage({
-        type: "PLAYERS_UPDATE",
-        players: appState.playersData,
-      });
+      broadcastMessage({ type: "PLAYERS_UPDATE", players: appState.playersData });
       updateLobbyUI();
       return;
     }
@@ -420,6 +389,13 @@ function handlePeerData(data) {
     }
   }
 
+  if (data.type === "RETURN_TO_LOBBY") {
+    returnToLobby();
+  }
+  if (data.type === "UPDATE_SPECS") {
+    appState.totalRounds = data.rounds;
+    appState.timerDuration = data.time;
+  }
   if (data.type === "PLAYERS_UPDATE") {
     appState.playersData = data.players;
     updateLobbyUI();
@@ -455,15 +431,9 @@ async function loadNextPokemon() {
   if (appState.isMultiplayer && !appState.isHost) return;
   try {
     appState.finishedPlayers = [];
-    const pokemon = await fetchPokemonData(
-      appState.pokemonQueue[appState.currentRound],
-    );
+    const pokemon = await fetchPokemonData(appState.pokemonQueue[appState.currentRound]);
     if (appState.isMultiplayer && appState.isHost) {
-      broadcastMessage({
-        type: "NEW_ROUND",
-        pokemon: pokemon,
-        round: appState.currentRound,
-      });
+      broadcastMessage({ type: "NEW_ROUND", pokemon: pokemon, round: appState.currentRound });
     }
     setupPokemon(pokemon);
   } catch (err) {
@@ -511,9 +481,7 @@ function handleEndRound(newPlayersData, pokemon) {
   }
   feedback.innerHTML =
     (appState.localCorrect ? "✅ BIEN JOUÉ ! " : "❌ TERMINÉ ! ") +
-    "C'était <strong>" +
-    pokemon.nameFr.toUpperCase() +
-    "</strong>";
+    "C'était <strong>" + pokemon.nameFr.toUpperCase() + "</strong>";
   appState.history.push({ pokemon: pokemon, correct: appState.localCorrect });
   updateHistoryUI();
   setTimeout(proceedNext, 2500);
@@ -549,8 +517,7 @@ function showResults() {
       list.appendChild(el);
     });
   } else {
-    document.getElementById("results-score").textContent =
-      appState.score + " PTS";
+    document.getElementById("results-score").textContent = appState.score + " PTS";
     const timeSec = (appState.totalTime / 1000).toFixed(1);
     const timeEl = document.createElement("div");
     timeEl.style.textAlign = "center";
@@ -571,17 +538,11 @@ function initUI() {
   const grid = document.getElementById("gen-grid");
   generationData.forEach((gen) => {
     const btn = document.createElement("button");
-    btn.className =
-      "gen-btn" + (appState.selectedGens.includes(gen.id) ? " active" : "");
+    btn.className = "gen-btn" + (appState.selectedGens.includes(gen.id) ? " active" : "");
     btn.innerHTML = gen.label + "<span>" + gen.sub + "</span>";
     btn.addEventListener("click", () => {
-      if (
-        appState.selectedGens.includes(gen.id) &&
-        appState.selectedGens.length > 1
-      ) {
-        appState.selectedGens = appState.selectedGens.filter(
-          (g) => g !== gen.id,
-        );
+      if (appState.selectedGens.includes(gen.id) && appState.selectedGens.length > 1) {
+        appState.selectedGens = appState.selectedGens.filter((g) => g !== gen.id);
         btn.classList.remove("active");
       } else if (!appState.selectedGens.includes(gen.id)) {
         appState.selectedGens.push(gen.id);
@@ -592,21 +553,15 @@ function initUI() {
   });
   document.getElementById("btn-all-gens").addEventListener("click", () => {
     appState.selectedGens = generationData.map((g) => g.id);
-    document
-      .querySelectorAll(".gen-btn")
-      .forEach((b) => b.classList.add("active"));
+    document.querySelectorAll(".gen-btn").forEach((b) => b.classList.add("active"));
   });
   document.querySelectorAll(".glass-btn").forEach((btn) => {
     btn.addEventListener("click", (e) => {
       const parent = e.target.parentElement;
-      parent
-        .querySelectorAll(".glass-btn")
-        .forEach((b) => b.classList.remove("active"));
+      parent.querySelectorAll(".glass-btn").forEach((b) => b.classList.remove("active"));
       btn.classList.add("active");
-      if (parent.id === "rounds-grid")
-        appState.totalRounds = Number(btn.dataset.value);
-      if (parent.id === "timer-grid")
-        appState.timerDuration = Number(btn.dataset.value);
+      if (parent.id === "rounds-grid") appState.totalRounds = Number(btn.dataset.value);
+      if (parent.id === "timer-grid") appState.timerDuration = Number(btn.dataset.value);
     });
   });
 }
@@ -614,10 +569,7 @@ function initUI() {
 document.getElementById("btn-solo").addEventListener("click", () => {
   appState.isMultiplayer = false;
   appState.pokemonQueue = buildQueue();
-  appState.totalRounds = Math.min(
-    appState.totalRounds,
-    appState.pokemonQueue.length,
-  );
+  appState.totalRounds = Math.min(appState.totalRounds, appState.pokemonQueue.length);
   appState.score = 0;
   appState.streak = 0;
   appState.totalTime = 0;
@@ -669,8 +621,9 @@ document.getElementById("btn-host").addEventListener("click", () => {
     })
     .subscribe((status) => {
       if (status === "SUBSCRIBED") {
-        document.getElementById("lobby-code-display").textContent =
-          appState.roomCode;
+        window.history.pushState({}, "", "/" + appState.roomCode);
+        document.getElementById("lobby-settings").style.display = "block";
+        document.getElementById("lobby-code-display").textContent = appState.roomCode;
         document.getElementById("btn-start-multi").style.display = "block";
         document.getElementById("waiting-msg").style.display = "none";
         btn.textContent = originalText;
@@ -682,10 +635,7 @@ document.getElementById("btn-host").addEventListener("click", () => {
 });
 
 document.getElementById("btn-join").addEventListener("click", () => {
-  appState.roomCode = document
-    .getElementById("join-code")
-    .value.toUpperCase()
-    .trim();
+  appState.roomCode = document.getElementById("join-code").value.toUpperCase().trim();
   if (!appState.roomCode) return;
 
   const btn = document.getElementById("btn-join");
@@ -700,8 +650,7 @@ document.getElementById("btn-join").addEventListener("click", () => {
     return;
   }
 
-  appState.playerName =
-    document.getElementById("player-name").value || "Joueur";
+  appState.playerName = document.getElementById("player-name").value || "Joueur";
   appState.isMultiplayer = true;
   appState.isHost = false;
   appState.playerId = "player-" + Date.now();
@@ -713,13 +662,10 @@ document.getElementById("btn-join").addEventListener("click", () => {
     })
     .subscribe((status) => {
       if (status === "SUBSCRIBED") {
-        broadcastMessage({
-          type: "JOIN",
-          name: appState.playerName,
-          id: appState.playerId,
-        });
-        document.getElementById("lobby-code-display").textContent =
-          appState.roomCode;
+        window.history.pushState({}, "", "/" + appState.roomCode);
+        document.getElementById("lobby-settings").style.display = "none";
+        broadcastMessage({ type: "JOIN", name: appState.playerName, id: appState.playerId });
+        document.getElementById("lobby-code-display").textContent = appState.roomCode;
         document.getElementById("waiting-msg").style.display = "block";
         document.getElementById("btn-start-multi").style.display = "none";
         btn.textContent = originalText;
@@ -731,10 +677,7 @@ document.getElementById("btn-join").addEventListener("click", () => {
 
 document.getElementById("btn-start-multi").addEventListener("click", () => {
   appState.pokemonQueue = buildQueue();
-  appState.totalRounds = Math.min(
-    appState.totalRounds,
-    appState.pokemonQueue.length,
-  );
+  appState.totalRounds = Math.min(appState.totalRounds, appState.pokemonQueue.length);
   appState.score = 0;
   appState.currentRound = 0;
   appState.history = [];
@@ -743,28 +686,16 @@ document.getElementById("btn-start-multi").addEventListener("click", () => {
     p.totalTime = 0;
     p.streak = 0;
   });
-  broadcastMessage({
-    type: "START_GAME",
-    rounds: appState.totalRounds,
-    time: appState.timerDuration,
-  });
+  broadcastMessage({ type: "START_GAME", rounds: appState.totalRounds, time: appState.timerDuration });
   document.getElementById("live-history").innerHTML = "";
   switchScreen("game");
   loadNextPokemon();
 });
 
 document.getElementById("answer-input").addEventListener("input", (e) => {
-  if (
-    !appState.isAnswering ||
-    appState.localGuessed ||
-    !appState.currentPokemon
-  )
-    return;
+  if (!appState.isAnswering || appState.localGuessed || !appState.currentPokemon) return;
   const value = e.target.value;
-  if (
-    checkMatch(value, appState.currentPokemon.nameFr) ||
-    checkMatch(value, appState.currentPokemon.nameEn)
-  ) {
+  if (checkMatch(value, appState.currentPokemon.nameFr) || checkMatch(value, appState.currentPokemon.nameEn)) {
     appState.localGuessed = true;
     appState.localCorrect = true;
     const timeTaken = Date.now() - appState.roundStartTime;
@@ -772,22 +703,12 @@ document.getElementById("answer-input").addEventListener("input", (e) => {
     e.target.classList.add("correct-flash");
     document.getElementById("btn-pass").disabled = true;
     const feedback = document.getElementById("feedback-message");
-    feedback.textContent = appState.isMultiplayer
-      ? "✅ Correct ! Attente..."
-      : "✅ Correct !";
+    feedback.textContent = appState.isMultiplayer ? "✅ Correct ! Attente..." : "✅ Correct !";
     feedback.className = "feedback correct";
     if (appState.isMultiplayer) {
-      sendToHost({
-        type: "CORRECT",
-        id: appState.playerId,
-        timeTaken: timeTaken,
-      });
+      sendToHost({ type: "CORRECT", id: appState.playerId, timeTaken: timeTaken });
     } else {
-      const points = calculatePoints(
-        timeTaken,
-        appState.timerDuration,
-        appState.streak,
-      );
+      const points = calculatePoints(timeTaken, appState.timerDuration, appState.streak);
       appState.score += points;
       appState.streak++;
       appState.totalTime += timeTaken;
@@ -814,54 +735,84 @@ document.getElementById("btn-pass").addEventListener("click", () => {
   }
 });
 
+function resetHomeMenu() {
+  document.getElementById("step-1-gens").style.display = "block";
+  document.getElementById("step-2-specs").style.display = "none";
+}
+
+function quitToHome() {
+  if (appState.roomChannel) {
+    supabaseClient.removeChannel(appState.roomChannel);
+    appState.roomChannel = null;
+  }
+  window.history.pushState({}, "", "/");
+  resetHomeMenu();
+  switchScreen("home");
+}
+
+function returnToLobby() {
+  appState.score = 0;
+  appState.currentRound = 0;
+  Object.values(appState.playersData).forEach((p) => {
+    p.score = 0;
+    p.totalTime = 0;
+    p.streak = 0;
+  });
+  updateLobbyUI();
+  switchScreen("lobby");
+}
+
+document.getElementById("btn-quit-lobby").addEventListener("click", quitToHome);
+
 document.getElementById("btn-quit").addEventListener("click", () => {
   stopTimer();
   appState.isAnswering = false;
-  if (appState.roomChannel) {
-    supabaseClient.removeChannel(appState.roomChannel);
-    appState.roomChannel = null;
-  }
-  resetHomeMenu(); // <-- Ajoute cette ligne !
-  switchScreen("home");
+  quitToHome();
 });
 
 document.getElementById("btn-replay").addEventListener("click", () => {
-  if (appState.roomChannel) {
-    supabaseClient.removeChannel(appState.roomChannel);
-    appState.roomChannel = null;
+  if (appState.isMultiplayer) {
+    if (appState.isHost) {
+      broadcastMessage({ type: "RETURN_TO_LOBBY" });
+    }
+    returnToLobby();
+  } else {
+    quitToHome();
   }
-  switchScreen("home");
 });
 
-document.getElementById("btn-home-results").addEventListener("click", () => {
-  if (appState.roomChannel) {
-    supabaseClient.removeChannel(appState.roomChannel);
-    appState.roomChannel = null;
-  }
-  switchScreen("home");
-});
+document.getElementById("btn-home-results").addEventListener("click", quitToHome);
 
 document.getElementById("btn-next-step").addEventListener("click", () => {
-  // Petite sécurité : empêcher de passer à la suite si 0 génération est sélectionnée
   if (appState.selectedGens.length === 0) {
     alert("Choisis au moins une génération pour continuer !");
     return;
   }
-  // On cache l'étape 1 et on affiche l'étape 2
   document.getElementById("step-1-gens").style.display = "none";
   document.getElementById("step-2-specs").style.display = "block";
 });
 
 document.getElementById("btn-prev-step").addEventListener("click", () => {
-  // On cache l'étape 2 et on réaffiche l'étape 1
   document.getElementById("step-2-specs").style.display = "none";
   document.getElementById("step-1-gens").style.display = "block";
 });
 
-// Fonction pour remettre le menu à zéro quand on quitte la partie
-function resetHomeMenu() {
-  document.getElementById("step-1-gens").style.display = "block";
-  document.getElementById("step-2-specs").style.display = "none";
-}
+document.getElementById("lobby-rounds-select").addEventListener("change", (e) => {
+  appState.totalRounds = parseInt(e.target.value);
+  broadcastMessage({ type: "UPDATE_SPECS", rounds: appState.totalRounds, time: appState.timerDuration });
+});
+
+document.getElementById("lobby-time-select").addEventListener("change", (e) => {
+  appState.timerDuration = parseInt(e.target.value);
+  broadcastMessage({ type: "UPDATE_SPECS", rounds: appState.totalRounds, time: appState.timerDuration });
+});
+
+window.addEventListener("DOMContentLoaded", () => {
+  const pathCode = window.location.pathname.replace(/\//g, "").toUpperCase();
+  if (pathCode.length === 4) {
+    document.getElementById("join-code").value = pathCode;
+    document.getElementById("player-name").focus();
+  }
+});
 
 initUI();

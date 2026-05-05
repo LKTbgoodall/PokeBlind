@@ -99,31 +99,47 @@
     </div>
 
     <div id="screen-lobby" class="screen">
-      <div class="bg-animated"></div>
-      <div class="home-container">
-        <h2 class="logo-title subtitle">
-          SALON : <span id="lobby-code-display"></span>
-        </h2>
-        <div class="glass-panel">
-          <h3 class="setting-label">JOUEURS PRÉSENTS</h3>
-          <div id="lobby-players" class="lobby-players-list"></div>
-          <button
-            class="btn-primary mt-3 w-100"
-            id="btn-start-multi"
-            style="display: none"
-          >
-            LANCER LA PARTIE
-          </button>
-          <p
-            id="waiting-msg"
-            class="setting-label mt-3 text-center"
-            style="display: none"
-          >
-            En attente de l'hôte...
-          </p>
+  <div class="game-topbar w-100" style="justify-content: flex-start; padding: 1rem;">
+    <button class="btn-icon" id="btn-quit-lobby" title="Quitter">
+      <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none">
+        <path d="M18 6L6 18M6 6l12 12"></path>
+      </svg>
+    </button>
+  </div>
+  <div class="bg-animated"></div>
+  <div class="home-container" style="padding-top: 0;">
+    <h2 class="logo-title subtitle">
+      SALON : <span id="lobby-code-display"></span>
+    </h2>
+    <div class="glass-panel">
+      <h3 class="setting-label">JOUEURS PRÉSENTS</h3>
+      <div id="lobby-players" class="lobby-players-list"></div>
+
+      <div id="lobby-settings" style="display: none; border-top: 1px solid var(--glass-border); padding-top: 1rem; margin-top: 1rem;">
+        <h3 class="setting-label">MODIFIER LES PARAMÈTRES</h3>
+        <div class="action-row mt-2">
+          <select id="lobby-rounds-select" class="glass-input">
+            <option value="5">5 Manches</option>
+            <option value="10" selected>10 Manches</option>
+            <option value="20">20 Manches</option>
+          </select>
+          <select id="lobby-time-select" class="glass-input">
+            <option value="10">10s par manche</option>
+            <option value="15" selected>15s par manche</option>
+            <option value="20">20s par manche</option>
+          </select>
         </div>
       </div>
+
+      <button class="btn-primary mt-3 w-100" id="btn-start-multi" style="display: none">
+        LANCER LA PARTIE
+      </button>
+      <p id="waiting-msg" class="setting-label mt-3 text-center" style="display: none">
+        En attente de l'hôte...
+      </p>
     </div>
+  </div>
+</div>
 
     <div id="screen-game" class="screen game-bg">
       <div class="game-topbar">
