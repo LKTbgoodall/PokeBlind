@@ -1,3 +1,14 @@
+const supabaseUrl = "https://skrgmhdcvezxpyybwssn.supabase.co";
+const supabaseKey =
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNrcmdtaGRjdmV6eHB5eWJ3c3NuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc5ODE0MjUsImV4cCI6MjA5MzU1NzQyNX0.SXIL3dhqATc_F3zB2B_ELjAxMZ0vFDJ-sxBC-bdo2EE";
+
+let supabaseClient = null;
+try {
+  supabaseClient = window.supabase.createClient(supabaseUrl, supabaseKey);
+} catch (e) {
+  console.warn("Supabase non configuré. Le mode multijoueur sera inactif.");
+}
+
 const generationData = [
   { id: 1, label: "GEN I", sub: "1-151", range: [1, 151] },
   { id: 2, label: "GEN II", sub: "152-251", range: [152, 251] },
@@ -44,39 +55,31 @@ let appState = {
   timerInterval: null,
   timeLeft: 15000,
   roundStartTime: 0,
-
   isAnswering: false,
   localGuessed: false,
   localCorrect: false,
   history: [],
-
   isMultiplayer: false,
   isHost: false,
-  peerInstance: null,
-  connections: [],
+  roomChannel: null,
   roomCode: "",
   playerName: "",
   playerId: "solo",
   playersData: {},
-  finishedPlayers: [], // Suivi de ceux qui ont fini le round en cours
+  finishedPlayers: [],
 };
 
-// --- CALCUL DES POINTS ---
 function calculatePoints(timeTaken, timerDuration, currentStreak) {
   const baseScore = 500;
   const maxTimeBonus = 500;
-  // Plus on est rapide, plus on s'approche des 500 points bonus
   const timeBonus = Math.max(
     0,
     Math.floor(maxTimeBonus * (1 - timeTaken / (timerDuration * 1000))),
   );
-  // Multiplicateur : +20% de points par bonne réponse consécutive (plafond à x2.0)
   const streakMultiplier = Math.min(2.0, 1 + (currentStreak || 0) * 0.2);
-
   return Math.floor((baseScore + timeBonus) * streakMultiplier);
 }
 
-// --- CONFETTIS ---
 class ConfettiGenerator {
   constructor(canvas) {
     this.canvas = canvas;
@@ -89,18 +92,18 @@ class ConfettiGenerator {
     this.canvas.height = window.innerHeight;
     this.canvas.style.display = "block";
     this.pieces = [];
-    const colors = ["#E63946", "#FFDE00", "#3B4CCA", "#78C850", "#ffffff"];
-    for (let i = 0; i < 130; i++) {
+    const colors = ["#FF3344", "#FFDE00", "#3B4CCA", "#00E676", "#ffffff"];
+    for (let i = 0; i < 150; i++) {
       this.pieces.push({
         x: Math.random() * this.canvas.width,
         y: Math.random() * this.canvas.height * 0.4 - this.canvas.height * 0.5,
-        size: Math.random() * 10 + 5,
+        size: Math.random() * 12 + 6,
         color: colors[Math.floor(Math.random() * colors.length)],
-        vx: (Math.random() - 0.5) * 7,
-        vy: Math.random() * 5 + 2,
-        gravity: 0.07 + Math.random() * 0.04,
+        vx: (Math.random() - 0.5) * 8,
+        vy: Math.random() * 6 + 3,
+        gravity: 0.08 + Math.random() * 0.05,
         rotation: Math.random() * Math.PI * 2,
-        rotSpeed: (Math.random() - 0.5) * 0.18,
+        rotSpeed: (Math.random() - 0.5) * 0.2,
         isCircle: Math.random() > 0.5,
         opacity: 1,
       });
@@ -117,7 +120,7 @@ class ConfettiGenerator {
       p.y += p.vy;
       p.vy += p.gravity;
       p.rotation += p.rotSpeed;
-      if (p.y > this.canvas.height - 60) p.opacity -= 0.04;
+      if (p.y > this.canvas.height - 60) p.opacity -= 0.03;
       if (p.y < this.canvas.height + 20 && p.opacity > 0) alive = true;
       this.ctx.save();
       this.ctx.globalAlpha = Math.max(0, p.opacity);
@@ -149,7 +152,6 @@ const confettiEffect = new ConfettiGenerator(
   document.getElementById("confetti-canvas"),
 );
 
-// --- OUTILS ---
 function normalizeText(str) {
   return str
     .toLowerCase()
@@ -157,11 +159,13 @@ function normalizeText(str) {
     .replace(/[\u0300-\u036f]/g, "")
     .replace(/[^a-z0-9]/g, "");
 }
+
 function checkMatch(input, target) {
   const nIn = normalizeText(input),
     nTar = normalizeText(target);
   return nIn === nTar && nIn.length > 0;
 }
+
 function shuffleArray(arr) {
   const a = [...arr];
   for (let i = a.length - 1; i > 0; i--) {
@@ -170,6 +174,7 @@ function shuffleArray(arr) {
   }
   return a;
 }
+
 function buildQueue() {
   let pool = [];
   for (const gen of generationData) {
@@ -179,12 +184,14 @@ function buildQueue() {
   }
   return shuffleArray(pool).slice(0, appState.totalRounds);
 }
+
 function switchScreen(id) {
   document
     .querySelectorAll(".screen")
     .forEach((s) => s.classList.remove("active"));
   document.getElementById("screen-" + id).classList.add("active");
 }
+
 function toggleLoading(visible) {
   const overlay = document.getElementById("loading-overlay");
   visible
@@ -192,7 +199,6 @@ function toggleLoading(visible) {
     : overlay.classList.add("hidden");
 }
 
-// --- API ---
 async function fetchPokemonData(id) {
   const [res1, res2] = await Promise.all([
     fetch("https://pokeapi.co/api/v2/pokemon/" + id),
@@ -200,8 +206,8 @@ async function fetchPokemonData(id) {
   ]);
   const p1 = await res1.json(),
     p2 = await res2.json();
-  const fr = p2.names.find((n) => n.language.name === "fr"),
-    en = p2.names.find((n) => n.language.name === "en");
+  const fr = p2.names.find((n) => n.language.name === "fr");
+  const en = p2.names.find((n) => n.language.name === "en");
   return {
     id,
     nameFr: fr ? fr.name : p1.name,
@@ -213,7 +219,6 @@ async function fetchPokemonData(id) {
   };
 }
 
-// --- UI UPDATES ---
 function updateHistoryUI() {
   const container = document.getElementById("live-history");
   container.innerHTML = "";
@@ -232,7 +237,6 @@ function updateScoreUI() {
     document.getElementById("solo-score-pill").style.display = "none";
     const container = document.getElementById("multi-scores");
     container.innerHTML = "";
-
     Object.values(appState.playersData)
       .sort((a, b) => b.score - a.score)
       .forEach((player) => {
@@ -268,24 +272,18 @@ function resetRoundUI() {
   const input = document.getElementById("answer-input");
   const feedback = document.getElementById("feedback-message");
   const glow = document.getElementById("arena-glow");
-
   input.value = "";
   input.disabled = false;
   input.classList.remove("correct-flash", "wrong-flash");
-
   document.getElementById("btn-pass").disabled = false;
-
   feedback.textContent = "";
   feedback.className = "feedback";
   glow.className = "arena-glow";
-
   document.getElementById("timer-bar").style.width = "100%";
-
   appState.localGuessed = false;
   appState.localCorrect = false;
 }
 
-// --- TIMER ---
 function startTimer() {
   stopTimer();
   const bar = document.getElementById("timer-bar");
@@ -293,22 +291,29 @@ function startTimer() {
   const totalTime = appState.timerDuration * 1000;
   appState.timeLeft = totalTime;
   bar.classList.remove("blink");
-
   appState.timerInterval = setInterval(() => {
     appState.timeLeft -= 100;
     const pct = Math.max(0, appState.timeLeft / totalTime);
     bar.style.width = pct * 100 + "%";
-    bar.style.backgroundColor = "hsl(" + Math.round(pct * 120) + ", 75%, 55%)";
+
+    if (pct > 0.5) {
+      bar.style.backgroundColor = "var(--success)";
+    } else if (pct > 0.25) {
+      bar.style.backgroundColor = "var(--accent)";
+    } else {
+      bar.style.backgroundColor = "var(--danger)";
+    }
+
     numEl.textContent = Math.ceil(appState.timeLeft / 1000);
     if (appState.timeLeft <= 3000) bar.classList.add("blink");
 
     if (appState.timeLeft <= 0) {
       stopTimer();
       if (appState.isMultiplayer && appState.isHost) {
-        triggerRoundEnd(); // L'hôte force la fin du round pour tout le monde
+        triggerRoundEnd();
       } else if (!appState.isMultiplayer) {
         if (!appState.localGuessed) {
-          appState.streak = 0; // Remise à zero de la série
+          appState.streak = 0;
           appState.totalTime += totalTime;
           appState.localCorrect = false;
         }
@@ -326,15 +331,21 @@ function stopTimer() {
   document.getElementById("timer-bar").classList.remove("blink");
 }
 
-// --- LOGIQUE MULTIJOUEUR ---
 function broadcastMessage(data) {
-  appState.connections.forEach((conn) => conn.send(data));
+  if (appState.roomChannel) {
+    appState.roomChannel.send({
+      type: "broadcast",
+      event: "game",
+      payload: data,
+    });
+  }
 }
+
 function sendToHost(msg) {
   if (appState.isHost) {
     handleHostData(msg);
-  } else if (appState.connections.length > 0) {
-    appState.connections[0].send(msg);
+  } else {
+    broadcastMessage(msg);
   }
 }
 
@@ -342,10 +353,8 @@ function handleHostData(data) {
   if (!appState.isHost) return;
   const player = appState.playersData[data.id];
   if (!player) return;
-
   if (!appState.finishedPlayers.includes(data.id)) {
     appState.finishedPlayers.push(data.id);
-
     if (data.type === "CORRECT") {
       const points = calculatePoints(
         data.timeTaken,
@@ -356,10 +365,9 @@ function handleHostData(data) {
       player.streak = (player.streak || 0) + 1;
       player.totalTime += data.timeTaken;
     } else if (data.type === "SKIP") {
-      player.streak = 0; // Cassage de série
-      player.totalTime += appState.timerDuration * 1000; // Pénalité de temps max
+      player.streak = 0;
+      player.totalTime += appState.timerDuration * 1000;
     }
-
     broadcastMessage({ type: "PLAYERS_UPDATE", players: appState.playersData });
     updateScoreUI();
     checkRoundEnd();
@@ -368,7 +376,6 @@ function handleHostData(data) {
 
 function checkRoundEnd() {
   const totalPlayers = Object.keys(appState.playersData).length;
-  // Si le nombre de joueurs ayant fini correspond au total des joueurs connectés, on stop tout !
   if (appState.finishedPlayers.length >= totalPlayers) {
     triggerRoundEnd();
   }
@@ -376,14 +383,12 @@ function checkRoundEnd() {
 
 function triggerRoundEnd() {
   stopTimer();
-  // Donner la pénalité de temps max à ceux qui ont AFK (n'ont pas fini)
   Object.keys(appState.playersData).forEach((pid) => {
     if (!appState.finishedPlayers.includes(pid)) {
       appState.playersData[pid].streak = 0;
       appState.playersData[pid].totalTime += appState.timerDuration * 1000;
     }
   });
-
   broadcastMessage({
     type: "END_ROUND",
     finalScores: appState.playersData,
@@ -392,8 +397,7 @@ function triggerRoundEnd() {
   handleEndRound(appState.playersData, appState.currentPokemon);
 }
 
-function handlePeerData(data, connection) {
-  // L'HÔTE ÉCOUTE ACTIVEMENT LES JOUEURS
+function handlePeerData(data) {
   if (appState.isHost) {
     if (data.type === "JOIN") {
       appState.playersData[data.id] = {
@@ -410,14 +414,12 @@ function handlePeerData(data, connection) {
       updateLobbyUI();
       return;
     }
-    // C'est ici que l'hôte récupère les réponses en direct des autres !
     if (data.type === "CORRECT" || data.type === "SKIP") {
       handleHostData(data);
       return;
     }
   }
 
-  // LES CLIENTS METTENT À JOUR LEUR ÉCRAN
   if (data.type === "PLAYERS_UPDATE") {
     appState.playersData = data.players;
     updateLobbyUI();
@@ -446,16 +448,13 @@ function handlePeerData(data, connection) {
   }
 }
 
-// --- JEU ---
 async function loadNextPokemon() {
   toggleLoading(true);
   resetRoundUI();
   updateScoreUI();
-
   if (appState.isMultiplayer && !appState.isHost) return;
-
   try {
-    appState.finishedPlayers = []; // L'hôte remet à 0 le compteur de finisseurs au nouveau round
+    appState.finishedPlayers = [];
     const pokemon = await fetchPokemonData(
       appState.pokemonQueue[appState.currentRound],
     );
@@ -475,10 +474,8 @@ async function loadNextPokemon() {
 function setupPokemon(pokemon) {
   resetRoundUI();
   appState.currentPokemon = pokemon;
-
   const img = document.getElementById("pokemon-img");
   if (pokemon.imageUrl) img.src = pokemon.imageUrl;
-
   const badges = document.getElementById("type-badges");
   badges.innerHTML = "";
   pokemon.types.forEach((t) => {
@@ -486,10 +483,9 @@ function setupPokemon(pokemon) {
     const b = document.createElement("span");
     b.className = "type-badge";
     b.style.backgroundColor = d.color;
-    b.textContent = t.toUpperCase();
+    b.textContent = t;
     badges.appendChild(b);
   });
-
   toggleLoading(false);
   appState.isAnswering = true;
   appState.roundStartTime = Date.now();
@@ -502,29 +498,25 @@ function handleEndRound(newPlayersData, pokemon) {
   appState.isAnswering = false;
   if (newPlayersData) appState.playersData = newPlayersData;
   updateScoreUI();
-
   const input = document.getElementById("answer-input");
   const feedback = document.getElementById("feedback-message");
   const glow = document.getElementById("arena-glow");
-
   if (!appState.localCorrect) {
     input.classList.add("wrong-flash");
     glow.classList.add("wrong-glow");
     feedback.className = "feedback wrong";
   } else {
+    glow.classList.add("correct-glow");
     confettiEffect.launch();
   }
-
   feedback.innerHTML =
-    (appState.localCorrect ? "✅ Bien joué ! " : "❌ Terminé ! ") +
+    (appState.localCorrect ? "✅ BIEN JOUÉ ! " : "❌ TERMINÉ ! ") +
     "C'était <strong>" +
-    pokemon.nameFr +
+    pokemon.nameFr.toUpperCase() +
     "</strong>";
-
   appState.history.push({ pokemon: pokemon, correct: appState.localCorrect });
   updateHistoryUI();
-
-  setTimeout(proceedNext, 2500); // On laisse 2.5s pour voir la réponse
+  setTimeout(proceedNext, 2500);
 }
 
 function proceedNext() {
@@ -543,16 +535,12 @@ function showResults() {
   switchScreen("results");
   const list = document.getElementById("results-list");
   list.innerHTML = "";
-
   if (appState.isMultiplayer) {
     document.getElementById("results-score").textContent = "CLASSEMENT";
-
-    // Tri : Plus grand score en 1er, si égalité on regarde celui qui a mis le moins de temps
     const sortedPlayers = Object.values(appState.playersData).sort((a, b) => {
       if (b.score !== a.score) return b.score - a.score;
       return a.totalTime - b.totalTime;
     });
-
     sortedPlayers.forEach((player, index) => {
       const el = document.createElement("div");
       el.className = "result-row";
@@ -562,16 +550,14 @@ function showResults() {
     });
   } else {
     document.getElementById("results-score").textContent =
-      appState.score + " pts";
+      appState.score + " PTS";
     const timeSec = (appState.totalTime / 1000).toFixed(1);
-
     const timeEl = document.createElement("div");
     timeEl.style.textAlign = "center";
     timeEl.style.color = "var(--text-muted)";
     timeEl.style.marginBottom = "1rem";
     timeEl.textContent = `Temps total : ${timeSec}s`;
     list.appendChild(timeEl);
-
     appState.history.forEach((item) => {
       const el = document.createElement("div");
       el.className = "result-row";
@@ -581,7 +567,6 @@ function showResults() {
   }
 }
 
-// --- EVENTS INIT ---
 function initUI() {
   const grid = document.getElementById("gen-grid");
   generationData.forEach((gen) => {
@@ -605,31 +590,23 @@ function initUI() {
     });
     grid.appendChild(btn);
   });
-
   document.getElementById("btn-all-gens").addEventListener("click", () => {
     appState.selectedGens = generationData.map((g) => g.id);
     document
       .querySelectorAll(".gen-btn")
       .forEach((b) => b.classList.add("active"));
   });
-
-  document.querySelectorAll(".round-btn").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      document
-        .querySelectorAll(".round-btn")
+  document.querySelectorAll(".glass-btn").forEach((btn) => {
+    btn.addEventListener("click", (e) => {
+      const parent = e.target.parentElement;
+      parent
+        .querySelectorAll(".glass-btn")
         .forEach((b) => b.classList.remove("active"));
       btn.classList.add("active");
-      appState.totalRounds = Number(btn.dataset.value);
-    });
-  });
-
-  document.querySelectorAll(".timer-btn").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      document
-        .querySelectorAll(".timer-btn")
-        .forEach((b) => b.classList.remove("active"));
-      btn.classList.add("active");
-      appState.timerDuration = Number(btn.dataset.value);
+      if (parent.id === "rounds-grid")
+        appState.totalRounds = Number(btn.dataset.value);
+      if (parent.id === "timer-grid")
+        appState.timerDuration = Number(btn.dataset.value);
     });
   });
 }
@@ -657,49 +634,51 @@ document.getElementById("btn-host").addEventListener("click", () => {
   btn.textContent = "CRÉATION...";
   btn.disabled = true;
 
+  if (!supabaseClient) {
+    alert("Multijoueur indisponible : vérifie la connexion Supabase.");
+    btn.textContent = originalText;
+    btn.disabled = false;
+    return;
+  }
+
   appState.playerName = document.getElementById("player-name").value || "Hôte";
   appState.isMultiplayer = true;
   appState.isHost = true;
 
-  // Générer un code à 4 lettres
   const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
   let code = "";
-  for (let i = 0; i < 4; i++)
+  for (let i = 0; i < 4; i++) {
     code += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
   appState.roomCode = code;
+  appState.playerId = "host-" + Date.now();
 
-  appState.peerInstance = new Peer("pb-" + appState.roomCode);
+  appState.playersData = {};
+  appState.playersData[appState.playerId] = {
+    id: appState.playerId,
+    name: appState.playerName,
+    score: 0,
+    totalTime: 0,
+    streak: 0,
+  };
 
-  appState.peerInstance.on("open", (id) => {
-    appState.playerId = id;
-    appState.playersData[id] = {
-      id: id,
-      name: appState.playerName,
-      score: 0,
-      totalTime: 0,
-      streak: 0,
-    };
-    document.getElementById("lobby-code-display").textContent =
-      appState.roomCode;
-    document.getElementById("btn-start-multi").style.display = "block";
-
-    btn.textContent = originalText;
-    btn.disabled = false;
-
-    updateLobbyUI();
-    switchScreen("lobby");
-  });
-
-  appState.peerInstance.on("error", (err) => {
-    alert("Erreur de connexion au serveur : " + err.type);
-    btn.textContent = originalText;
-    btn.disabled = false;
-  });
-
-  appState.peerInstance.on("connection", (conn) => {
-    appState.connections.push(conn);
-    conn.on("data", (data) => handlePeerData(data, conn));
-  });
+  appState.roomChannel = supabaseClient.channel("room-" + appState.roomCode);
+  appState.roomChannel
+    .on("broadcast", { event: "game" }, ({ payload }) => {
+      handlePeerData(payload);
+    })
+    .subscribe((status) => {
+      if (status === "SUBSCRIBED") {
+        document.getElementById("lobby-code-display").textContent =
+          appState.roomCode;
+        document.getElementById("btn-start-multi").style.display = "block";
+        document.getElementById("waiting-msg").style.display = "none";
+        btn.textContent = originalText;
+        btn.disabled = false;
+        updateLobbyUI();
+        switchScreen("lobby");
+      }
+    });
 });
 
 document.getElementById("btn-join").addEventListener("click", () => {
@@ -707,61 +686,47 @@ document.getElementById("btn-join").addEventListener("click", () => {
     .getElementById("join-code")
     .value.toUpperCase()
     .trim();
-
-  if (!appState.roomCode) {
-    alert("Veuillez entrer un code de salon !");
-    return;
-  }
+  if (!appState.roomCode) return;
 
   const btn = document.getElementById("btn-join");
   const originalText = btn.textContent;
   btn.textContent = "CONNEXION...";
   btn.disabled = true;
 
+  if (!supabaseClient) {
+    alert("Multijoueur indisponible.");
+    btn.textContent = originalText;
+    btn.disabled = false;
+    return;
+  }
+
   appState.playerName =
     document.getElementById("player-name").value || "Joueur";
   appState.isMultiplayer = true;
   appState.isHost = false;
-  appState.peerInstance = new Peer();
+  appState.playerId = "player-" + Date.now();
 
-  appState.peerInstance.on("open", (id) => {
-    appState.playerId = id;
-    const conn = appState.peerInstance.connect("pb-" + appState.roomCode);
-    appState.connections = [conn];
-
-    conn.on("open", () => {
-      conn.send({ type: "JOIN", name: appState.playerName, id: id });
-      document.getElementById("lobby-code-display").textContent =
-        appState.roomCode;
-      document.getElementById("host-settings-panel").style.display = "none";
-      document.getElementById("waiting-msg").style.display = "block";
-
-      btn.textContent = originalText;
-      btn.disabled = false;
-
-      switchScreen("lobby");
+  appState.roomChannel = supabaseClient.channel("room-" + appState.roomCode);
+  appState.roomChannel
+    .on("broadcast", { event: "game" }, ({ payload }) => {
+      handlePeerData(payload);
+    })
+    .subscribe((status) => {
+      if (status === "SUBSCRIBED") {
+        broadcastMessage({
+          type: "JOIN",
+          name: appState.playerName,
+          id: appState.playerId,
+        });
+        document.getElementById("lobby-code-display").textContent =
+          appState.roomCode;
+        document.getElementById("waiting-msg").style.display = "block";
+        document.getElementById("btn-start-multi").style.display = "none";
+        btn.textContent = originalText;
+        btn.disabled = false;
+        switchScreen("lobby");
+      }
     });
-
-    // Erreur de connexion directe à l'hôte
-    conn.on("error", (err) => {
-      alert("Impossible de rejoindre l'hôte.");
-      btn.textContent = originalText;
-      btn.disabled = false;
-    });
-
-    conn.on("data", (data) => handlePeerData(data, conn));
-  });
-
-  // Gestion des erreurs générales PeerJS (ex: salon introuvable)
-  appState.peerInstance.on("error", (err) => {
-    if (err.type === "peer-unavailable") {
-      alert("Salon introuvable ! Vérifie le code.");
-    } else {
-      alert("Erreur réseau : " + err.type);
-    }
-    btn.textContent = originalText;
-    btn.disabled = false;
-  });
 });
 
 document.getElementById("btn-start-multi").addEventListener("click", () => {
@@ -778,19 +743,16 @@ document.getElementById("btn-start-multi").addEventListener("click", () => {
     p.totalTime = 0;
     p.streak = 0;
   });
-
   broadcastMessage({
     type: "START_GAME",
     rounds: appState.totalRounds,
     time: appState.timerDuration,
   });
-
   document.getElementById("live-history").innerHTML = "";
   switchScreen("game");
   loadNextPokemon();
 });
 
-// EVENT INPUT TEXTE
 document.getElementById("answer-input").addEventListener("input", (e) => {
   if (
     !appState.isAnswering ||
@@ -799,7 +761,6 @@ document.getElementById("answer-input").addEventListener("input", (e) => {
   )
     return;
   const value = e.target.value;
-
   if (
     checkMatch(value, appState.currentPokemon.nameFr) ||
     checkMatch(value, appState.currentPokemon.nameEn)
@@ -807,17 +768,14 @@ document.getElementById("answer-input").addEventListener("input", (e) => {
     appState.localGuessed = true;
     appState.localCorrect = true;
     const timeTaken = Date.now() - appState.roundStartTime;
-
     e.target.disabled = true;
     e.target.classList.add("correct-flash");
     document.getElementById("btn-pass").disabled = true;
-
     const feedback = document.getElementById("feedback-message");
     feedback.textContent = appState.isMultiplayer
-      ? "✅ Correct ! Attente des autres..."
+      ? "✅ Correct ! Attente..."
       : "✅ Correct !";
     feedback.className = "feedback correct";
-
     if (appState.isMultiplayer) {
       sendToHost({
         type: "CORRECT",
@@ -838,23 +796,19 @@ document.getElementById("answer-input").addEventListener("input", (e) => {
   }
 });
 
-// EVENT BOUTON PASSER
 document.getElementById("btn-pass").addEventListener("click", () => {
   if (!appState.isAnswering || appState.localGuessed) return;
   appState.localGuessed = true;
   appState.localCorrect = false;
-
   document.getElementById("answer-input").disabled = true;
   document.getElementById("btn-pass").disabled = true;
-
   const feedback = document.getElementById("feedback-message");
-  feedback.textContent = "⏭️ Passé ! Attente...";
+  feedback.textContent = "⏭️ Passé !";
   feedback.className = "feedback";
-
   if (appState.isMultiplayer) {
     sendToHost({ type: "SKIP", id: appState.playerId });
   } else {
-    appState.streak = 0; // Remise à zero
+    appState.streak = 0;
     appState.totalTime += appState.timerDuration * 1000;
     handleEndRound(null, appState.currentPokemon);
   }
@@ -863,15 +817,51 @@ document.getElementById("btn-pass").addEventListener("click", () => {
 document.getElementById("btn-quit").addEventListener("click", () => {
   stopTimer();
   appState.isAnswering = false;
-  if (appState.peerInstance) appState.peerInstance.destroy();
+  if (appState.roomChannel) {
+    supabaseClient.removeChannel(appState.roomChannel);
+    appState.roomChannel = null;
+  }
+  resetHomeMenu(); // <-- Ajoute cette ligne !
   switchScreen("home");
 });
 
-document
-  .getElementById("btn-replay")
-  .addEventListener("click", () => switchScreen("home"));
-document
-  .getElementById("btn-home-results")
-  .addEventListener("click", () => switchScreen("home"));
+document.getElementById("btn-replay").addEventListener("click", () => {
+  if (appState.roomChannel) {
+    supabaseClient.removeChannel(appState.roomChannel);
+    appState.roomChannel = null;
+  }
+  switchScreen("home");
+});
+
+document.getElementById("btn-home-results").addEventListener("click", () => {
+  if (appState.roomChannel) {
+    supabaseClient.removeChannel(appState.roomChannel);
+    appState.roomChannel = null;
+  }
+  switchScreen("home");
+});
+
+document.getElementById("btn-next-step").addEventListener("click", () => {
+  // Petite sécurité : empêcher de passer à la suite si 0 génération est sélectionnée
+  if (appState.selectedGens.length === 0) {
+    alert("Choisis au moins une génération pour continuer !");
+    return;
+  }
+  // On cache l'étape 1 et on affiche l'étape 2
+  document.getElementById("step-1-gens").style.display = "none";
+  document.getElementById("step-2-specs").style.display = "block";
+});
+
+document.getElementById("btn-prev-step").addEventListener("click", () => {
+  // On cache l'étape 2 et on réaffiche l'étape 1
+  document.getElementById("step-2-specs").style.display = "none";
+  document.getElementById("step-1-gens").style.display = "block";
+});
+
+// Fonction pour remettre le menu à zéro quand on quitte la partie
+function resetHomeMenu() {
+  document.getElementById("step-1-gens").style.display = "block";
+  document.getElementById("step-2-specs").style.display = "none";
+}
 
 initUI();
